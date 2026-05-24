@@ -1,0 +1,2286 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tiempos WCA — Competiciones de los Hommies</title>
+<style>
+  :root {
+    --bg: #0f1419;
+    --card: #1a2028;
+    --card-hover: #232d3a;
+    --border: #2a3340;
+    --text: #e4e7eb;
+    --text-dim: #b8c0cc;
+    --muted: #8b96a3;
+    --accent: #4a9eff;
+    --success: #51cf66;
+    --warning: #ffa94d;
+    --gold: #ffd43b;
+    --silver: #74c0fc;
+    --bronze: #d4a373;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 20px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+  }
+  .container { max-width: 1400px; margin: 0 auto; }
+
+  header { margin-bottom: 16px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .subtitle { color: var(--muted); font-size: 13px; }
+
+  .tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+  }
+  .tab {
+    padding: 10px 18px;
+    background: none;
+    color: var(--muted);
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.15s;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  button, input[type="text"] {
+    background: var(--card);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  button { cursor: pointer; transition: background 0.15s; }
+  button:hover { background: var(--card-hover); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: white; }
+  button.primary:hover { opacity: 0.9; background: var(--accent); }
+  button.danger { background: #c92a2a; border-color: #c92a2a; color: white; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  input[type="text"] { font-family: ui-monospace, "Cascadia Code", monospace; min-width: 220px; }
+  input[type="text"]:focus { outline: none; border-color: var(--accent); }
+
+  .status {
+    font-size: 13px;
+    color: var(--muted);
+    margin-left: auto;
+  }
+  .status .ok { color: var(--success); }
+  .status .err { color: #ff6b6b; }
+
+  /* Historical table */
+  .table-wrapper {
+    overflow-x: auto;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  th, td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  thead th {
+    background: var(--bg);
+    color: var(--text-dim);
+    font-weight: 500;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+  tbody tr { transition: background 0.1s; }
+  tbody tr:hover { background: var(--card-hover); }
+  tbody tr:last-child td { border-bottom: none; }
+  td.competitor {
+    font-weight: 600;
+    font-size: 14px;
+  }
+  td.competitor .wca-id {
+    display: block;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 400;
+    font-family: ui-monospace, monospace;
+    margin-top: 2px;
+  }
+  td.time {
+    font-family: ui-monospace, "Cascadia Code", monospace;
+    text-align: right;
+  }
+  td.time.best {
+    color: var(--gold);
+    font-weight: 700;
+  }
+  td.time.silver {
+    color: var(--silver);
+    font-weight: 600;
+  }
+  td.time.bronze {
+    color: var(--bronze);
+    font-weight: 600;
+  }
+  td.empty { color: var(--muted); text-align: center; }
+
+  /* Live view */
+  .live-info {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+  }
+  .live-info h2 { margin: 0 0 4px; font-size: 18px; }
+  .live-info .meta { color: var(--muted); font-size: 13px; }
+
+  .events-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+    gap: 16px;
+  }
+  .event-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .event-card h3 {
+    margin: 0 0 4px;
+    font-size: 15px;
+    color: var(--accent);
+  }
+  .event-card .round {
+    color: var(--muted);
+    font-size: 12px;
+    margin-bottom: 12px;
+  }
+  .competitor-row {
+    display: grid;
+    grid-template-columns: 1.4fr 60px repeat(5, 1fr) 70px;
+    gap: 8px;
+    padding: 8px 0;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+    align-items: center;
+  }
+  .competitor-row:first-of-type { border-top: none; padding-top: 0; }
+  .competitor-row .name { font-weight: 600; }
+  .competitor-row .solve {
+    font-family: ui-monospace, monospace;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 12px;
+  }
+  .competitor-row .solve.dnf { color: #ff6b6b; }
+  .competitor-row .best { color: var(--gold); font-weight: 700; }
+  .competitor-row .avg {
+    text-align: center;
+    font-family: ui-monospace, monospace;
+    font-weight: 600;
+    color: var(--accent);
+  }
+  .competitor-row .rank {
+    text-align: center;
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+  .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+
+  .loading { color: var(--muted); padding: 20px; text-align: center; }
+  .error {
+    background: rgba(255, 107, 107, 0.1);
+    border: 1px solid #ff6b6b;
+    color: #ff6b6b;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 13px;
+  }
+  .badge {
+    display: inline-block;
+    background: var(--success);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    margin-left: 8px;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  details {
+    margin-top: 24px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 13px;
+  }
+  details summary {
+    cursor: pointer;
+    color: var(--muted);
+  }
+  details code, details pre {
+    background: var(--bg);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-family: ui-monospace, monospace;
+    font-size: 12px;
+  }
+  details pre { padding: 12px; overflow-x: auto; margin-top: 12px; }
+
+  /* ============ Panel de records ============ */
+  .records-panel {
+    margin-top: 20px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .records-panel h3 {
+    margin: 0 0 12px;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .records-panel .clear-btn {
+    margin-left: auto;
+    font-size: 12px;
+    padding: 4px 10px;
+  }
+  .records-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 360px;
+    overflow-y: auto;
+  }
+  .record-item {
+    background: var(--bg);
+    border-left: 3px solid var(--gold);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    animation: slidein 0.3s ease-out;
+  }
+  .record-item.pb-single { border-left-color: var(--gold); }
+  .record-item.pb-average { border-left-color: #ff79c6; }
+  .record-item.best-family { border-left-color: var(--accent); }
+  .record-item .ts {
+    color: var(--muted);
+    font-size: 11px;
+    font-family: ui-monospace, monospace;
+    flex-shrink: 0;
+  }
+  .record-item .body { flex: 1; }
+  .record-item .body strong { color: var(--text); }
+  .record-item .body .time-val {
+    font-family: ui-monospace, monospace;
+    font-weight: 700;
+    color: var(--gold);
+  }
+  .record-item.pb-average .body .time-val { color: #ff79c6; }
+  .record-item.best-family .body .time-val { color: var(--accent); }
+  .record-item .body .delta {
+    color: var(--success);
+    font-family: ui-monospace, monospace;
+    font-size: 12px;
+  }
+  .records-empty {
+    color: var(--muted);
+    font-size: 13px;
+    text-align: center;
+    padding: 16px;
+  }
+  @keyframes slidein {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ============ Assignments panel ============ */
+  .assignments-panel {
+    margin-top: 20px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .assignments-panel h3 {
+    margin: 0 0 12px;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .assignments-status {
+    margin-left: auto;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 400;
+  }
+  .person-block {
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+  .person-block:last-child { margin-bottom: 0; }
+  .person-block .person-name {
+    font-weight: 700;
+    font-size: 15px;
+    margin-bottom: 10px;
+    color: var(--text);
+  }
+  .person-block .person-name .wca-id {
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--muted);
+    margin-left: 8px;
+    font-weight: 400;
+  }
+  .assignment-row {
+    display: grid;
+    grid-template-columns: 75px 28px 1fr;
+    gap: 10px;
+    padding: 6px 0;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+    align-items: center;
+  }
+  .assignment-row:first-of-type { border-top: none; }
+  .assignment-row.now {
+    background: rgba(74, 158, 255, 0.08);
+    border-left: 3px solid var(--accent);
+    padding-left: 8px;
+    margin-left: -8px;
+  }
+  .assignment-row.past { opacity: 0.5; }
+  .assignment-row .time {
+    font-family: ui-monospace, monospace;
+    color: var(--text-dim);
+    font-size: 12px;
+  }
+  .assignment-row .now-tag {
+    color: var(--accent);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .assignment-row .icon { text-align: center; font-size: 14px; }
+  .assignment-row .desc {
+    color: var(--text);
+  }
+  .assignment-row .desc .role {
+    font-weight: 600;
+    margin-right: 4px;
+  }
+  .assignment-row .desc .station {
+    color: var(--muted);
+    font-size: 11px;
+    margin-left: 4px;
+  }
+  .assignments-empty {
+    color: var(--muted);
+    font-size: 13px;
+    text-align: center;
+    padding: 16px;
+  }
+  .person-block.has-changes {
+    box-shadow: inset 0 0 0 1px var(--warning);
+  }
+  .change-badge {
+    background: var(--warning);
+    color: #1a1a1a;
+    border: none;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    margin-left: 8px;
+    cursor: pointer;
+    animation: pulse 2s infinite;
+  }
+  .change-badge:hover { opacity: 0.85; background: var(--warning); }
+
+  /* ============ Schedule panel ============ */
+  .schedule-panel {
+    margin-top: 20px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .schedule-panel h3 {
+    margin: 0 0 12px;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .schedule-tabs {
+    margin-left: auto;
+    display: flex;
+    gap: 4px;
+  }
+  .schedule-tabs button {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .schedule-tabs button.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+  }
+  .schedule-tabs button:hover:not(.active) {
+    background: var(--card-hover);
+    color: var(--text);
+  }
+  .schedule-day {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .schedule-row {
+    display: grid;
+    grid-template-columns: 100px 1fr auto;
+    gap: 10px;
+    padding: 8px 12px;
+    background: var(--bg);
+    border-radius: 6px;
+    font-size: 13px;
+    align-items: center;
+    border-left: 3px solid transparent;
+  }
+  .schedule-row .time {
+    font-family: ui-monospace, monospace;
+    color: var(--text-dim);
+    font-size: 12px;
+  }
+  .schedule-row .name { color: var(--text); }
+  .schedule-row .involved {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+  .schedule-row .involved .chip {
+    background: var(--card-hover);
+    border-radius: 10px;
+    padding: 2px 8px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .schedule-row .involved .chip.compete { background: rgba(81, 207, 102, 0.2); color: var(--success); }
+  .schedule-row .involved .chip.staff { background: rgba(255, 169, 77, 0.2); color: var(--warning); }
+  .schedule-row.now {
+    border-left-color: var(--accent);
+    background: rgba(74, 158, 255, 0.08);
+  }
+  .schedule-row.past { opacity: 0.5; }
+  .schedule-row.has-family { border-left-color: var(--success); }
+  .schedule-row.has-family.now { border-left-color: var(--accent); }
+  .schedule-empty {
+    text-align: center;
+    padding: 16px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  /* ============ Picker modal ============ */
+  .picker-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .picker-modal {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 700px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .picker-header {
+    display: flex;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .picker-header h3 { margin: 0; font-size: 16px; flex: 1; }
+  .picker-close {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0 8px;
+  }
+  .picker-close:hover { color: var(--text); background: none; }
+  #picker-filter {
+    margin: 12px 20px;
+    padding: 10px 14px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  #picker-filter:focus { outline: none; border-color: var(--accent); }
+  .picker-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 20px;
+  }
+  .picker-item {
+    padding: 12px 14px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .picker-item:hover {
+    background: var(--card-hover);
+    border-color: var(--accent);
+  }
+  .picker-item .info { flex: 1; }
+  .picker-item .name { font-weight: 600; font-size: 14px; }
+  .picker-item .meta {
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 2px;
+  }
+  .picker-item .meta .wca-id-tag {
+    font-family: ui-monospace, monospace;
+    background: var(--card);
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-right: 6px;
+  }
+  .picker-item .status-tag {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 10px;
+    color: white;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+  }
+  .picker-item .status-tag.tag-live { background: var(--success); }
+  .picker-item .status-tag.tag-upcoming { background: var(--accent); }
+  .picker-item .status-tag.tag-edge { background: var(--warning); color: #1a1a1a; }
+  .picker-section-title {
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 12px 0 6px;
+    padding-top: 4px;
+  }
+  .picker-section-title:first-child { margin-top: 0; padding-top: 0; }
+  .picker-footer {
+    display: flex;
+    align-items: center;
+    padding: 12px 20px;
+    border-top: 1px solid var(--border);
+  }
+  .picker-count { flex: 1; color: var(--muted); font-size: 12px; }
+  .picker-empty {
+    text-align: center;
+    padding: 30px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  /* ============ Vista MOBILE para historico ============ */
+  .mobile-historico { display: none; }
+  .historico-mobile-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .historico-mobile-card h3 {
+    margin: 0 0 4px;
+    font-size: 16px;
+  }
+  .historico-mobile-card .wca-id {
+    color: var(--muted);
+    font-size: 11px;
+    font-family: ui-monospace, monospace;
+    margin-bottom: 12px;
+  }
+  .historico-mobile-card .event-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 12px;
+    padding: 8px 0;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+    align-items: center;
+  }
+  .historico-mobile-card .event-row:first-of-type {
+    border-top: none;
+    padding-top: 4px;
+  }
+  .historico-mobile-card .event-row .event-name {
+    color: var(--text-dim);
+    font-weight: 500;
+  }
+  .historico-mobile-card .event-row .single,
+  .historico-mobile-card .event-row .avg {
+    font-family: ui-monospace, monospace;
+    font-size: 12px;
+    min-width: 60px;
+    text-align: right;
+  }
+  .historico-mobile-card .event-row .single.best,
+  .historico-mobile-card .event-row .avg.best {
+    color: var(--gold);
+    font-weight: 700;
+  }
+  .historico-mobile-card .event-row .single.silver,
+  .historico-mobile-card .event-row .avg.silver {
+    color: var(--silver);
+    font-weight: 600;
+  }
+  .historico-mobile-card .event-row .single.bronze,
+  .historico-mobile-card .event-row .avg.bronze {
+    color: var(--bronze);
+    font-weight: 600;
+  }
+  .historico-mobile-card .event-row .col-label {
+    color: var(--muted);
+    font-size: 10px;
+    text-transform: uppercase;
+    margin-right: 2px;
+  }
+  .historico-mobile-card .empty {
+    color: var(--muted);
+    font-size: 12px;
+    padding: 8px 0;
+    text-align: center;
+  }
+
+  /* ============ Vista MOBILE para live ============ */
+  .competitor-row-mobile {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    padding: 10px 0;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .competitor-row-mobile:first-of-type { border-top: none; padding-top: 4px; }
+  .competitor-row-mobile .name-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    grid-column: 1 / -1;
+  }
+  .competitor-row-mobile .name-line .name { font-weight: 600; flex: 1; }
+  .competitor-row-mobile .name-line .rank {
+    color: var(--muted);
+    font-size: 11px;
+  }
+  .competitor-row-mobile .name-line .avg {
+    font-family: ui-monospace, monospace;
+    font-weight: 600;
+    color: var(--accent);
+  }
+  .competitor-row-mobile .solves {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 4px;
+    margin-top: 4px;
+  }
+  .competitor-row-mobile .solves .solve {
+    font-family: ui-monospace, monospace;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 12px;
+    padding: 4px 2px;
+    background: var(--bg);
+    border-radius: 4px;
+  }
+  .competitor-row-mobile .solves .solve.dnf { color: #ff6b6b; }
+  .competitor-row-mobile .solves .solve.best { color: var(--gold); font-weight: 700; }
+
+  /* ============ Media queries ============ */
+  @media (max-width: 768px) {
+    body { padding: 12px; }
+    h1 { font-size: 18px; }
+    .controls { gap: 8px; }
+    button, input[type="text"] { font-size: 13px; padding: 8px 10px; }
+
+    /* Histórico: ocultar tabla, mostrar tarjetas */
+    .table-wrapper { display: none; }
+    .mobile-historico { display: block; }
+
+    /* Live: ocultar la rejilla de 7 columnas, usar tarjetas mobile */
+    .competitor-row { display: none !important; }
+    .events-grid { grid-template-columns: 1fr; }
+    .event-card { padding: 12px; }
+    .event-card h3 { font-size: 14px; }
+
+    /* Records: más compactos */
+    .record-item {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+    }
+    .record-item .ts { font-size: 10px; }
+
+    /* Picker en móvil */
+    .picker-overlay { padding: 0; align-items: stretch; }
+    .picker-modal { max-height: 100vh; border-radius: 0; max-width: none; }
+    .picker-item { flex-wrap: wrap; }
+    .picker-item .status-tag { margin-top: 4px; }
+
+    /* Tabs ocupan todo el ancho */
+    .tabs { overflow-x: auto; }
+    .tab { padding: 10px 14px; font-size: 13px; flex-shrink: 0; }
+
+    /* Status info más pequeño */
+    .status { font-size: 11px; width: 100%; margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <header>
+    <h1><h1><svg viewBox="0 0 24 24" width="22" height="22" style="vertical-align:-3px;display:inline-block;margin-right:4px"><rect x="2" y="2" width="6" height="6" fill="#e74c3c" stroke="#111" stroke-width="0.5"/><rect x="9" y="2" width="6" height="6" fill="#f1c40f" stroke="#111" stroke-width="0.5"/><rect x="16" y="2" width="6" height="6" fill="#27ae60" stroke="#111" stroke-width="0.5"/><rect x="2" y="9" width="6" height="6" fill="#fff" stroke="#111" stroke-width="0.5"/><rect x="9" y="9" width="6" height="6" fill="#3498db" stroke="#111" stroke-width="0.5"/><rect x="16" y="9" width="6" height="6" fill="#e67e22" stroke="#111" stroke-width="0.5"/><rect x="2" y="16" width="6" height="6" fill="#f1c40f" stroke="#111" stroke-width="0.5"/><rect x="9" y="16" width="6" height="6" fill="#27ae60" stroke="#111" stroke-width="0.5"/><rect x="16" y="16" width="6" height="6" fill="#e74c3c" stroke="#111" stroke-width="0.5"/></svg>Tiempos WCA — Competiciones de los Hommies</h1></h1>
+    <p class="subtitle">Histórico desde la API de la WCA · Live desde WCA Live</p>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" data-panel="historico">📊 Histórico</button>
+    <button class="tab" data-panel="live">📡 Live</button>
+  </div>
+
+  <!-- ============ HISTORICO ============ -->
+  <div id="panel-historico" class="panel active">
+    <div class="controls">
+      <button class="primary" id="reload-hist">🔄 Actualizar</button>
+      <div class="status" id="status-hist">—</div>
+    </div>
+    <div id="historico-content">
+      <div class="loading">Cargando…</div>
+    </div>
+  </div>
+
+  <!-- ============ LIVE ============ -->
+  <div id="panel-live" class="panel">
+    <div class="controls">
+      <button class="primary" id="live-browse">📋 Buscar competición en curso</button>
+      <button class="danger" id="live-disconnect" disabled>Desconectar</button>
+      <button id="live-now" disabled>🔄 Actualizar ahora</button>
+      <div class="status" id="status-live">No conectado</div>
+    </div>
+    <div id="live-content">
+      <div class="empty-state">
+        <div class="icon">📡</div>
+        <p>Pulsa <b>Buscar competición en curso</b> para elegir entre las activas en WCA Live.</p>
+        <p style="font-size: 12px;">La página actualizará los tiempos cada 15 segundos.</p>
+      </div>
+    </div>
+
+    <div class="records-panel" id="records-panel" style="display:none;">
+      <h3>
+        🏆 Records detectados en esta sesión
+        <button class="clear-btn" id="clear-records">Borrar</button>
+      </h3>
+      <div class="records-list" id="records-list">
+        <div class="records-empty">Aún no se ha detectado ningún record. Se irán apilando aquí los más recientes arriba.</div>
+      </div>
+    </div>
+
+    <div class="assignments-panel" id="assignments-panel" style="display:none;">
+      <h3>
+        📋 Asignaciones de los competidores
+        <button class="clear-btn" id="refresh-assignments" title="Actualizar asignaciones">🔄</button>
+        <span class="assignments-status" id="assignments-status"></span>
+      </h3>
+      <div id="assignments-content">
+        <div class="loading">Cargando asignaciones…</div>
+      </div>
+    </div>
+
+    <div class="schedule-panel" id="schedule-panel" style="display:none;">
+      <h3>
+        🗓️ Horario de la competición
+        <span class="schedule-tabs" id="schedule-tabs"></span>
+      </h3>
+      <div id="schedule-content">
+        <div class="loading">Cargando horario…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MODAL DE SELECCION ============ -->
+  <div id="picker-overlay" class="picker-overlay" style="display:none;">
+    <div class="picker-modal">
+      <div class="picker-header">
+        <h3>Competiciones activas en WCA Live</h3>
+        <button class="picker-close" id="picker-close">✕</button>
+      </div>
+      <input type="text" id="picker-filter" placeholder="Filtrar por nombre…" autocomplete="off">
+      <div class="picker-list" id="picker-list">
+        <div class="loading">Cargando…</div>
+      </div>
+      <div class="picker-footer">
+        <span class="picker-count" id="picker-count"></span>
+        <button id="picker-reload">🔄 Recargar lista</button>
+      </div>
+      <div style="padding: 10px 20px; border-top: 1px solid var(--border); font-size: 11px; color: var(--muted);">
+        ℹ️ Solo aparecen competiciones cuyos datos ya están cargados en WCA Live.
+        Las que están listadas en "Upcoming" en la web pero aún sin importar no son consultables.
+      </div>
+    </div>
+  </div>
+
+  <details>
+    <summary>⚙️ Cómo configurar los competidores</summary>
+    <p>Edita este archivo con un editor de texto, busca el bloque <code>COMPETIDORES</code> al final y cambia los WCA IDs reales. El WCA ID es ese código que aparece en el perfil de cada uno, tipo <code>2020SANC01</code>.</p>
+    <p>Si alguno aún no tiene WCA ID (no ha competido nunca), puedes dejarlo vacío y aparecerá como sin datos.</p>
+    <pre><code>const COMPETIDORES = [
+  { nombre: "Alex",   wcaId: "2020XXXX01" },
+  { nombre: "Marcos", wcaId: "2020XXXX02" },
+  { nombre: "Ele",    wcaId: "2020XXXX03" },
+  { nombre: "Andy",   wcaId: "2020XXXX04" },
+];</code></pre>
+  </details>
+
+</div>
+
+<script>
+// ============ CONFIGURACION ============
+// EDITA AQUÍ los WCA IDs reales de tu familia.
+// Si alguien no tiene WCA ID aún, déjalo como cadena vacía: wcaId: ""
+const COMPETIDORES = [
+  { nombre: "Álex Mora Prieto",   wcaId: "2025MORA11" },
+  { nombre: "Marcos Mora Prieto", wcaId: "2025PRIE04" },
+  { nombre: "Arturo Lizama Montoya",    wcaId: "2022MONT30" },
+  { nombre: "Enzo Perez de Sousa",   wcaId: "2023SOUS01" },
+  { nombre: "Hugo Barjollo Morales",   wcaId: "2024MORA08" },
+  { nombre: "Miguel Ángel Meza",   wcaId: "2023MEZA02" },
+  { nombre: "Miguel Valero Olmo",   wcaId: "2023VALE42" },
+  { nombre: "Rodrigo Delgado Martínez",   wcaId: "2022MART63" },
+  { nombre: "Víctor Tretyakov Timofeyeva",   wcaId: "2023TIMO01" },
+  { nombre: "Aitor Javier Rubio Pozuelo",   wcaId: "2022POZU01" },
+  { nombre: "Asier Adell Díaz",   wcaId: "2023DIAZ20" },
+  { nombre: "Fernando Granado Torres",   wcaId: "2022TORR12" },
+  { nombre: "Lucía González Garcia-Moya",   wcaId: "2024GARC06" },
+  { nombre: "Mikhail Dmitriev",   wcaId: "2025DMIT01" },
+  { nombre: "Marcos Caballero Marsilla",   wcaId: "2023MARS33" },
+  { nombre: "Lucas Campaniello González",   wcaId: "2023GONZ90" },
+  { nombre: "Joel Santamaría Arriola",   wcaId: "2022ARRI02" },
+  { nombre: "Jonás Martínez Martínez",   wcaId: "2024MART08" },
+  { nombre: "Francisco Javier García Góngora",   wcaId: "2023GONG04" },
+
+];
+
+// Frecuencia de refresco de la vista live (en milisegundos)
+const LIVE_REFRESH_MS = 60000;
+
+// ============ EVENTOS WCA ============
+const EVENT_NAMES = {
+  "333":    "3x3",
+  "222":    "2x2",
+  "444":    "4x4",
+  "555":    "5x5",
+  "666":    "6x6",
+  "777":    "7x7",
+  "333bf":  "3x3 BF",
+  "333fm":  "3x3 FM",
+  "333oh":  "3x3 OH",
+  "clock":  "Clock",
+  "minx":   "Mega",
+  "pyram":  "Pyra",
+  "skewb":  "Skewb",
+  "sq1":    "Sq-1",
+  "444bf":  "4BF",
+  "555bf":  "5BF",
+  "333mbf": "MBLD",
+};
+const EVENT_ORDER = Object.keys(EVENT_NAMES);
+
+// ============ HELPERS ============
+function formatCenti(c) {
+  // WCA da los tiempos en centisegundos.
+  // -1 = DNF, -2 = DNS
+  if (c == null || c === 0) return "—";
+  if (c === -1) return "DNF";
+  if (c === -2) return "DNS";
+  const total = c / 100;
+  if (total < 60) return total.toFixed(2);
+  const m = Math.floor(total / 60);
+  const s = (total - m * 60).toFixed(2).padStart(5, "0");
+  return `${m}:${s}`;
+}
+
+function formatMBLD(value) {
+  // Multi-Blind tiene su propio formato encoded.
+  // value es un número raro: floor(value/10000000) puntos, etc.
+  // Simplificamos mostrando el número raw decode.
+  if (value == null || value === 0) return "—";
+  if (value === -1) return "DNF";
+  const v = value;
+  const tiempo = Math.floor((v / 100) % 100000);
+  const fallidos = Math.floor((v % 100));
+  const acertados99 = Math.floor(v / 10000000);
+  const solved = 99 - acertados99 + fallidos;
+  return `${solved}/${solved + fallidos}`;
+}
+
+function formatTime(centi, eventId) {
+  if (eventId === "333mbf") return formatMBLD(centi);
+  if (eventId === "333fm") {
+    if (centi == null || centi === 0) return "—";
+    if (centi === -1) return "DNF";
+    return centi.toString(); // FM se mide en movimientos, no en segundos
+  }
+  return formatCenti(centi);
+}
+
+async function fetchPerson(wcaId) {
+  if (!wcaId) return null;
+  const r = await fetch(`https://www.worldcubeassociation.org/api/v0/persons/${wcaId}`);
+  if (!r.ok) throw new Error(`${wcaId}: HTTP ${r.status}`);
+  return r.json();
+}
+
+function setStatus(el, msg, kind = "") {
+  el.innerHTML = kind
+    ? `<span class="${kind}">${msg}</span>`
+    : msg;
+}
+
+// ============ HISTORICO ============
+async function loadHistorico() {
+  const statusEl = document.getElementById("status-hist");
+  const contentEl = document.getElementById("historico-content");
+
+  const valid = COMPETIDORES.filter(c => c.wcaId);
+  if (valid.length === 0) {
+    contentEl.innerHTML = `
+      <div class="empty-state">
+        <div class="icon">⚙️</div>
+        <p>No has configurado ningún WCA ID todavía.</p>
+        <p>Mira el desplegable <b>"Cómo configurar los competidores"</b> abajo.</p>
+      </div>`;
+    setStatus(statusEl, "");
+    return;
+  }
+
+  setStatus(statusEl, "Cargando…");
+
+  let data;
+  try {
+    data = await Promise.all(COMPETIDORES.map(async c => ({
+      competidor: c,
+      datos: c.wcaId ? await fetchPerson(c.wcaId).catch(e => ({ error: e.message })) : null,
+    })));
+  } catch (e) {
+    contentEl.innerHTML = `<div class="error">Error: ${e.message}</div>`;
+    setStatus(statusEl, "Error", "err");
+    return;
+  }
+
+  // Detectar qué eventos tiene al menos uno
+  const eventsWithData = new Set();
+  for (const row of data) {
+    if (!row.datos || row.datos.error) continue;
+    const prs = row.datos.personal_records || {};
+    for (const evId of Object.keys(prs)) eventsWithData.add(evId);
+  }
+  const eventsToShow = EVENT_ORDER.filter(e => eventsWithData.has(e));
+
+  if (eventsToShow.length === 0) {
+    contentEl.innerHTML = `
+      <div class="empty-state">
+        <div class="icon">🔍</div>
+        <p>Ninguno de los competidores tiene resultados oficiales todavía.</p>
+      </div>`;
+    setStatus(statusEl, `${valid.length} cargados`, "ok");
+    return;
+  }
+
+  // Para cada evento/tipo, calcular ranking de tiempos (top 3 distintos)
+  // para resaltar oro/plata/bronce.
+  // Estructura: bestPerEventType[clave] = [tiempo1, tiempo2, tiempo3]
+  const bestPerEventType = {};
+  for (const evId of eventsToShow) {
+    for (const type of ["single", "average"]) {
+      const times = [];
+      for (const row of data) {
+        if (!row.datos || row.datos.error) continue;
+        const pr = row.datos.personal_records?.[evId]?.[type];
+        if (pr && pr.best > 0) times.push(pr.best);
+      }
+      // Tiempos únicos ordenados ascendente (mejor primero)
+      const unique = [...new Set(times)].sort((a, b) => a - b);
+      bestPerEventType[`${evId}_${type}`] = unique.slice(0, 3);
+    }
+  }
+
+  // Helper: devuelve la clase CSS correspondiente al tiempo (oro/plata/bronce o "")
+  function medalClass(value, podium) {
+    if (!value || !podium || podium.length === 0) return "";
+    const idx = podium.indexOf(value);
+    if (idx === 0) return "best";
+    if (idx === 1) return "silver";
+    if (idx === 2) return "bronze";
+    return "";
+  }
+
+  // Render
+  let html = `<div class="table-wrapper"><table>
+    <thead><tr>
+      <th>Competidor</th>`;
+  for (const evId of eventsToShow) {
+    html += `<th colspan="2" style="text-align:center; border-left: 1px solid var(--border);">${EVENT_NAMES[evId]}</th>`;
+  }
+  html += `</tr><tr><th></th>`;
+  for (const evId of eventsToShow) {
+    html += `<th style="text-align:right; border-left: 1px solid var(--border);">single</th><th style="text-align:right;">avg</th>`;
+  }
+  html += `</tr></thead><tbody>`;
+
+  for (const row of data) {
+    html += `<tr><td class="competitor">${row.competidor.nombre}`;
+    if (row.competidor.wcaId) {
+      html += `<span class="wca-id">${row.competidor.wcaId}</span>`;
+    }
+    html += `</td>`;
+
+    if (!row.competidor.wcaId) {
+      html += `<td class="empty" colspan="${eventsToShow.length * 2}">Sin WCA ID</td>`;
+    } else if (row.datos?.error) {
+      html += `<td class="empty" colspan="${eventsToShow.length * 2}">Error: ${row.datos.error}</td>`;
+    } else {
+      const prs = row.datos.personal_records || {};
+      for (const evId of eventsToShow) {
+        for (const type of ["single", "average"]) {
+          const pr = prs[evId]?.[type];
+          const podium = bestPerEventType[`${evId}_${type}`];
+          if (!pr) {
+            html += `<td class="time empty">—</td>`;
+          } else {
+            const medal = medalClass(pr.best, podium);
+            const cls = medal ? `time ${medal}` : "time";
+            html += `<td class="${cls}">${formatTime(pr.best, evId)}</td>`;
+          }
+        }
+      }
+    }
+    html += `</tr>`;
+  }
+  html += `</tbody></table></div>`;
+
+  // ===== Vista móvil: una tarjeta por competidor =====
+  let mobileHtml = `<div class="mobile-historico">`;
+  for (const row of data) {
+    mobileHtml += `<div class="historico-mobile-card">
+      <h3>${row.competidor.nombre}</h3>`;
+    if (row.competidor.wcaId) {
+      mobileHtml += `<div class="wca-id">${row.competidor.wcaId}</div>`;
+    }
+
+    if (!row.competidor.wcaId) {
+      mobileHtml += `<div class="empty">Sin WCA ID</div>`;
+    } else if (row.datos?.error) {
+      mobileHtml += `<div class="empty">Error: ${row.datos.error}</div>`;
+    } else {
+      const prs = row.datos.personal_records || {};
+      const personEvents = eventsToShow.filter(e => prs[e]);
+      if (personEvents.length === 0) {
+        mobileHtml += `<div class="empty">Sin resultados oficiales</div>`;
+      } else {
+        for (const evId of personEvents) {
+          const single = prs[evId].single;
+          const avg = prs[evId].average;
+          const podiumSingle = bestPerEventType[`${evId}_single`];
+          const podiumAvg = bestPerEventType[`${evId}_average`];
+
+          const singleStr = single
+            ? `<span class="single ${medalClass(single.best, podiumSingle)}"><span class="col-label">single</span>${formatTime(single.best, evId)}</span>`
+            : `<span class="single"><span class="col-label">single</span>—</span>`;
+          const avgStr = avg
+            ? `<span class="avg ${medalClass(avg.best, podiumAvg)}"><span class="col-label">avg</span>${formatTime(avg.best, evId)}</span>`
+            : `<span class="avg"><span class="col-label">avg</span>—</span>`;
+
+          mobileHtml += `<div class="event-row">
+            <span class="event-name">${EVENT_NAMES[evId]}</span>
+            ${singleStr}
+            ${avgStr}
+          </div>`;
+        }
+      }
+    }
+    mobileHtml += `</div>`;
+  }
+  mobileHtml += `</div>`;
+
+  contentEl.innerHTML = html + mobileHtml;
+  setStatus(statusEl, `Actualizado ${new Date().toLocaleTimeString("es-ES")}`, "ok");
+}
+
+// ============ LIVE ============
+let liveTimer = null;
+let liveCompId = null;
+
+// ============ RECORDS DETECTION ============
+// Estado de records por persona+evento para evitar avisos duplicados.
+// Estructura:
+//   sessionBest[wcaId][evId] = { single: centi, average: centi }
+//   officialPB[wcaId][evId]  = { single: centi, average: centi }  (cargado al conectar)
+//   familyBestDay[evId][type] = { centi, wcaId }
+let sessionBest = {};
+let officialPB = {};
+let familyBestDay = {};
+let recordsList = [];   // [{ ts, kind, msg, delta, eventId, wcaId }]
+
+function getCompetidorByWcaId(wcaId) {
+  return COMPETIDORES.find(c => c.wcaId === wcaId);
+}
+
+function pushRecord(kind, eventId, wcaId, time, previous) {
+  const comp = getCompetidorByWcaId(wcaId);
+  const nombre = comp ? comp.nombre : wcaId;
+  const evName = EVENT_NAMES[eventId] || eventId;
+  const timeStr = formatTime(time, eventId);
+  let msg, delta = "";
+  switch (kind) {
+    case "pb-single":
+      msg = `<strong>${nombre}</strong> nuevo PB single en <strong>${evName}</strong>: <span class="time-val">${timeStr}</span>`;
+      if (previous && previous > 0) {
+        const diff = ((previous - time) / 100).toFixed(2);
+        delta = `<span class="delta">−${diff}s</span>`;
+      }
+      break;
+    case "pb-average":
+      msg = `<strong>${nombre}</strong> nueva PB media en <strong>${evName}</strong>: <span class="time-val">${timeStr}</span>`;
+      if (previous && previous > 0) {
+        const diff = ((previous - time) / 100).toFixed(2);
+        delta = `<span class="delta">−${diff}s</span>`;
+      }
+      break;
+    case "best-family":
+      msg = `<strong>${nombre}</strong> mejor de la familia en <strong>${evName}</strong> hoy: <span class="time-val">${timeStr}</span>`;
+      break;
+  }
+  // Quitar avisos previos del MISMO tipo/persona/evento — solo nos interesa
+  // el último (el mejor hasta ahora). Así si alguien batió su PB tres veces
+  // seguidas, solo queda visible la última marca.
+  recordsList = recordsList.filter(r =>
+    !(r.kind === kind && r.wcaId === wcaId && r.eventId === eventId)
+  );
+
+  recordsList.unshift({
+    ts: new Date().toLocaleTimeString("es-ES"),
+    kind, msg, delta, eventId, wcaId,
+  });
+  renderRecords();
+}
+
+function renderRecords() {
+  const list = document.getElementById("records-list");
+  if (recordsList.length === 0) {
+    list.innerHTML = `<div class="records-empty">Aún no se ha detectado ningún record. Se irán apilando aquí los más recientes arriba.</div>`;
+    return;
+  }
+  list.innerHTML = recordsList.map(r => `
+    <div class="record-item ${r.kind}">
+      <span class="ts">${r.ts}</span>
+      <span class="body">${r.msg} ${r.delta}</span>
+    </div>
+  `).join("");
+}
+
+document.getElementById("clear-records").addEventListener("click", () => {
+  recordsList = [];
+  renderRecords();
+});
+
+function checkForRecords(comp) {
+  const wcaIdsSet = new Set(COMPETIDORES.map(c => c.wcaId).filter(Boolean));
+  for (const ce of comp.competitionEvents) {
+    const evId = ce.event.id;
+    for (const round of ce.rounds) {
+      for (const r of round.results) {
+        if (!wcaIdsSet.has(r.person.wcaId)) continue;
+        const wcaId = r.person.wcaId;
+
+        // Inicializar estructuras
+        if (!sessionBest[wcaId]) sessionBest[wcaId] = {};
+        if (!sessionBest[wcaId][evId]) sessionBest[wcaId][evId] = { single: 0, average: 0 };
+
+        // ----- Mejor SINGLE de la persona (PB) -----
+        for (const att of r.attempts) {
+          if (att.result > 0) {
+            const prevSession = sessionBest[wcaId][evId].single;
+            const prevOfficial = officialPB[wcaId]?.[evId]?.single || 0;
+            const prevBest = Math.max(
+              prevSession > 0 ? prevSession : Infinity,
+              prevOfficial > 0 ? prevOfficial : Infinity
+            ) === Infinity ? 0 : Math.min(
+              prevSession > 0 ? prevSession : Infinity,
+              prevOfficial > 0 ? prevOfficial : Infinity
+            );
+
+            const isNewPB = (prevBest === 0 || att.result < prevBest);
+            if (isNewPB && (prevSession === 0 || att.result < prevSession)) {
+              if (prevBest > 0) {  // No avisar del primer tiempo de la sesión si no había PB oficial
+                pushRecord("pb-single", evId, wcaId, att.result, prevBest);
+              } else if (prevOfficial === 0) {
+                // Primer single oficial de su vida, sí avisar
+                pushRecord("pb-single", evId, wcaId, att.result, 0);
+              }
+              sessionBest[wcaId][evId].single = att.result;
+            }
+          }
+        }
+
+        // ----- Mejor AVERAGE de la persona (PB) -----
+        if (r.average > 0) {
+          const prevSession = sessionBest[wcaId][evId].average;
+          const prevOfficial = officialPB[wcaId]?.[evId]?.average || 0;
+          const prevBest = (prevSession > 0 && prevOfficial > 0)
+            ? Math.min(prevSession, prevOfficial)
+            : (prevSession || prevOfficial || 0);
+
+          const isNewPB = (prevBest === 0 || r.average < prevBest);
+          if (isNewPB && (prevSession === 0 || r.average < prevSession)) {
+            if (prevBest > 0) {
+              pushRecord("pb-average", evId, wcaId, r.average, prevBest);
+            } else if (prevOfficial === 0) {
+              pushRecord("pb-average", evId, wcaId, r.average, 0);
+            }
+            sessionBest[wcaId][evId].average = r.average;
+          }
+        }
+
+        // ----- Mejor de la familia (single) -----
+        // Aviso desactivado: solo registramos el "mejor del día" internamente
+        // para referencia, pero no creamos record en el panel.
+        if (r.best > 0) {
+          if (!familyBestDay[evId]) familyBestDay[evId] = {};
+          const prev = familyBestDay[evId].single;
+          if (!prev || r.best < prev.centi) {
+            // (notificación deshabilitada a propósito)
+            // if (prev && prev.wcaId !== wcaId) {
+            //   pushRecord("best-family", evId, wcaId, r.best, prev.centi);
+            // }
+            familyBestDay[evId].single = { centi: r.best, wcaId };
+          }
+        }
+      }
+    }
+  }
+}
+
+async function loadOfficialPBs() {
+  // Cargar los PBs oficiales para la comparación.
+  officialPB = {};
+  for (const c of COMPETIDORES) {
+    if (!c.wcaId) continue;
+    try {
+      const data = await fetchPerson(c.wcaId);
+      const prs = data.personal_records || {};
+      officialPB[c.wcaId] = {};
+      for (const [evId, types] of Object.entries(prs)) {
+        officialPB[c.wcaId][evId] = {
+          single: types.single?.best || 0,
+          average: types.average?.best || 0,
+        };
+      }
+    } catch (e) {
+      console.warn(`No pude cargar PBs de ${c.wcaId}:`, e);
+    }
+  }
+}
+
+const LIVE_GQL = "https://live.worldcubeassociation.org/api";
+
+async function gqlQuery(query, variables) {
+  const r = await fetch(LIVE_GQL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query, variables }),
+  });
+  if (!r.ok) throw new Error(`WCA Live HTTP ${r.status}`);
+  const data = await r.json();
+  if (data.errors) throw new Error(data.errors[0].message);
+  return data.data;
+}
+
+async function fetchLiveCompetition(internalId) {
+  // La query "completa" excede el límite de complejidad de WCA Live para
+  // competiciones grandes. Estrategia: pedir primero la estructura ligera
+  // (eventos + rondas, sin resultados), luego solo las rondas que nos
+  // interesan.
+
+  // Paso 1: estructura ligera de la competición
+  const liteQ = `
+    query($id: ID!) {
+      competition(id: $id) {
+        id
+        name
+        competitionEvents {
+          id
+          event { id name }
+          rounds {
+            id
+            name
+            number
+          }
+        }
+      }
+    }`;
+  const liteData = await gqlQuery(liteQ, { id: internalId });
+  const comp = liteData.competition;
+  if (!comp) return null;
+
+  // Paso 2: por cada ronda, pedir sus resultados como query independiente.
+  // Así cada query individual queda dentro del límite de complejidad.
+  const allRoundIds = [];
+  for (const ce of comp.competitionEvents) {
+    for (const round of ce.rounds) {
+      allRoundIds.push(round.id);
+    }
+  }
+
+  const roundQ = `
+    query($id: ID!) {
+      round(id: $id) {
+        id
+        results {
+          ranking
+          attempts { result }
+          best
+          average
+          person { name wcaId }
+        }
+      }
+    }`;
+
+  // Pedimos todas las rondas en paralelo
+  const roundResults = await Promise.all(
+    allRoundIds.map(rid =>
+      gqlQuery(roundQ, { id: rid })
+        .then(d => d.round)
+        .catch(e => { console.warn("ronda fallida " + rid, e); return null; })
+    )
+  );
+
+  // Reinsertamos los resultados en la estructura
+  const byId = {};
+  for (const r of roundResults) if (r) byId[r.id] = r.results;
+
+  for (const ce of comp.competitionEvents) {
+    for (const round of ce.rounds) {
+      round.results = byId[round.id] || [];
+    }
+  }
+
+  return comp;
+}
+
+// ============ PICKER: listar competiciones activas ============
+let pickerCompetitions = { ongoing: [], upcoming: [] };
+
+async function fetchOngoingCompetitions() {
+  // 'competitions' acepta args: filter (String), from (Date), limit (Int).
+  // Usamos 'from' con la fecha de ayer para forzar que incluya las activas hoy.
+  const today = new Date();
+  const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+  const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+  const todayStr = today.toISOString().slice(0, 10);
+  const yesterdayStr = yesterday.toISOString().slice(0, 10);
+  const tomorrowStr = tomorrow.toISOString().slice(0, 10);
+
+  const q = `
+    query($from: Date) {
+      competitions(from: $from, limit: 200) {
+        id
+        wcaId
+        name
+        startDate
+        endDate
+      }
+    }`;
+  const data = await gqlQuery(q, { from: yesterdayStr });
+  const all = data.competitions || [];
+
+  console.log("Total devueltas (from=" + yesterdayStr + "):", all.length);
+  const cba = all.find(c => c.wcaId === "CBANightattheMuseumSCZ2026");
+  console.log("¿CBA Night encontrada?", cba ? "SÍ — id interno: " + cba.id : "NO");
+
+  const ongoing = [];
+  const upcoming = [];
+
+  for (const c of all) {
+    if (!c.startDate || !c.endDate) continue;
+
+    if (c.startDate <= tomorrowStr && c.endDate >= yesterdayStr) {
+      const strictlyOngoing = c.startDate <= todayStr && todayStr <= c.endDate;
+      ongoing.push({ ...c, strictlyOngoing });
+    } else if (c.startDate > tomorrowStr) {
+      const start = new Date(c.startDate);
+      const today0 = new Date(todayStr);
+      const diff = (start - today0) / (1000 * 60 * 60 * 24);
+      if (diff <= 14) upcoming.push(c);
+    }
+  }
+
+  ongoing.sort((a, b) => {
+    if (a.strictlyOngoing !== b.strictlyOngoing) return a.strictlyOngoing ? -1 : 1;
+    return a.startDate.localeCompare(b.startDate);
+  });
+  upcoming.sort((a, b) => a.startDate.localeCompare(b.startDate));
+
+  return { ongoing, upcoming };
+}
+
+function flagEmoji(iso2) {
+  // Intenta derivar la bandera del prefijo del wcaId (ej "ES2024XXXX" → ES)
+  // Si no es identificable, devuelve cadena vacía.
+  if (!iso2 || iso2.length !== 2 || !/^[A-Z]{2}$/.test(iso2)) return "";
+  const codePoints = [...iso2.toUpperCase()].map(c => 0x1F1E6 - 65 + c.charCodeAt(0));
+  return String.fromCodePoint(...codePoints);
+}
+
+function renderPicker(data) {
+  const listEl = document.getElementById("picker-list");
+  const countEl = document.getElementById("picker-count");
+  const total = (data.ongoing?.length || 0) + (data.upcoming?.length || 0);
+
+  if (total === 0) {
+    listEl.innerHTML = `<div class="picker-empty">No hay competiciones que coincidan.</div>`;
+    countEl.textContent = "0 competiciones";
+    return;
+  }
+
+  countEl.textContent = `${total} competición${total === 1 ? "" : "es"} (${data.ongoing?.length || 0} en curso, ${data.upcoming?.length || 0} próximas)`;
+
+  function renderSection(title, comps, tagClass, tagLabel) {
+    if (!comps || comps.length === 0) return "";
+    return `
+      <div class="picker-section-title">${title}</div>` +
+      comps.map(c => {
+        const dates = c.startDate === c.endDate
+          ? c.startDate
+          : `${c.startDate || "?"} → ${c.endDate || "?"}`;
+        // Para "ongoing", distinguir las estrictamente actuales de las del borde horario
+        let cls = tagClass;
+        let label = tagLabel;
+        if (tagClass === "tag-live" && c.strictlyOngoing === false) {
+          cls = "tag-edge";
+          label = "ZONA HORARIA";
+        }
+        return `
+          <div class="picker-item" data-id="${c.id}">
+            <div class="info">
+              <div class="name">${c.name}</div>
+              <div class="meta">
+                <span class="wca-id-tag">${c.wcaId || c.id}</span>
+                ${dates}
+              </div>
+            </div>
+            <span class="status-tag ${cls}">${label}</span>
+          </div>`;
+      }).join("");
+  }
+
+  listEl.innerHTML =
+    renderSection("⚡ En curso ahora", data.ongoing, "tag-live", "EN CURSO") +
+    renderSection("📅 Próximas", data.upcoming, "tag-upcoming", "PRÓXIMA");
+
+  // Listeners
+  listEl.querySelectorAll(".picker-item").forEach(el => {
+    const id = el.dataset.id;
+    el.addEventListener("click", () => {
+      const all = [...(pickerCompetitions.ongoing || []), ...(pickerCompetitions.upcoming || [])];
+      const comp = all.find(c => String(c.id) === id);
+      if (comp) selectCompetition(comp);
+    });
+  });
+}
+
+function filterPicker() {
+  const q = document.getElementById("picker-filter").value.trim().toLowerCase();
+  function filt(list) {
+    if (!q) return list;
+    return (list || []).filter(c =>
+      c.name.toLowerCase().includes(q) ||
+      (c.wcaId || "").toLowerCase().includes(q)
+    );
+  }
+  renderPicker({
+    ongoing: filt(pickerCompetitions.ongoing),
+    upcoming: filt(pickerCompetitions.upcoming),
+  });
+}
+
+async function openPicker() {
+  document.getElementById("picker-overlay").style.display = "flex";
+  document.getElementById("picker-list").innerHTML = `<div class="loading">Cargando competiciones activas…</div>`;
+  document.getElementById("picker-count").textContent = "";
+  document.getElementById("picker-filter").value = "";
+  try {
+    pickerCompetitions = await fetchOngoingCompetitions();
+    renderPicker(pickerCompetitions);
+    document.getElementById("picker-filter").focus();
+  } catch (e) {
+    document.getElementById("picker-list").innerHTML =
+      `<div class="error">Error al cargar lista: ${e.message}</div>`;
+  }
+}
+
+function closePicker() {
+  document.getElementById("picker-overlay").style.display = "none";
+}
+
+function selectCompetition(comp) {
+  closePicker();
+  liveCompId = comp.id;        // Guardamos el id INTERNO
+  liveCompInfo = comp;          // Y la info por si la queremos mostrar
+  document.getElementById("live-browse").disabled = true;
+  document.getElementById("live-disconnect").disabled = false;
+  document.getElementById("live-now").disabled = false;
+
+  // Reset estado
+  sessionBest = {};
+  familyBestDay = {};
+  recordsList = [];
+  renderRecords();
+  document.getElementById("records-panel").style.display = "block";
+
+  loadOfficialPBs().then(() => {
+    refreshLive();
+  });
+  liveTimer = setInterval(refreshLive, LIVE_REFRESH_MS);
+
+  // Cargar asignaciones del WCIF y arrancar polling cada 5 minutos
+  if (comp.wcaId) {
+    loadAssignmentsFor(comp.wcaId, true).catch(e => console.warn("Asignaciones:", e));
+    startAssignmentsPolling(comp.wcaId);
+  }
+}
+
+let liveCompInfo = null;
+
+
+function renderLive(comp, wcaIdsSet) {
+  const contentEl = document.getElementById("live-content");
+  if (!comp) {
+    contentEl.innerHTML = `
+      <div class="empty-state">
+        <div class="icon">😕</div>
+        <p>No pude cargar los datos. Reintenta en unos segundos.</p>
+      </div>`;
+    return;
+  }
+
+  let html = `
+    <div class="live-info">
+      <h2>${comp.name} <span class="badge">EN VIVO</span></h2>
+      <div class="meta">Actualizado ${new Date().toLocaleTimeString("es-ES")} · refresco cada ${LIVE_REFRESH_MS/1000}s</div>
+    </div>`;
+
+  // Filtrar eventos donde alguno de los 4 tenga al menos un intento en alguna ronda
+  const cards = [];
+  for (const ce of comp.competitionEvents) {
+    for (const round of ce.rounds) {
+      const ourResults = round.results.filter(r => wcaIdsSet.has(r.person.wcaId));
+      const anyAttempt = ourResults.some(r => r.attempts.some(a => a.result !== 0));
+      if (!anyAttempt && ourResults.length === 0) continue;
+
+      cards.push({
+        eventId: ce.event.id,
+        eventName: ce.event.name,
+        roundName: round.name,
+        roundNumber: round.number,
+        results: ourResults,
+        allResults: round.results,
+      });
+    }
+  }
+
+  if (cards.length === 0) {
+    html += `
+      <div class="empty-state">
+        <div class="icon">⏳</div>
+        <p>Ninguno de los Hommies ha completado intentos aún en esta competición.</p>
+        <p style="font-size: 12px;">Esta página se refrescará automáticamente.</p>
+      </div>`;
+  } else {
+    html += `<div class="events-grid">`;
+    for (const card of cards) {
+      html += `<div class="event-card">
+        <h3>${card.eventName}</h3>
+        <div class="round">${card.roundName}</div>`;
+
+      // Cabecera
+      html += `<div class="competitor-row" style="border:none; color: var(--muted); font-size: 11px; text-transform: uppercase;">
+        <span>Nombre</span><span style="text-align:center;">#</span>
+        <span class="solve">1</span><span class="solve">2</span><span class="solve">3</span><span class="solve">4</span><span class="solve">5</span>
+        <span class="avg">avg</span>
+      </div>`;
+
+      for (const r of card.results) {
+        const name = r.person.name.split('(')[0].trim();
+        const rank = r.ranking || '—';
+        const avgStr = formatTime(r.average, card.eventId);
+
+        // Versión escritorio (se oculta en móvil vía CSS)
+        html += `<div class="competitor-row">
+          <span class="name">${name}</span>
+          <span class="rank">${rank}</span>`;
+        for (let i = 0; i < 5; i++) {
+          const a = r.attempts[i];
+          if (!a || a.result === 0) {
+            html += `<span class="solve">—</span>`;
+          } else if (a.result === -1) {
+            html += `<span class="solve dnf">DNF</span>`;
+          } else if (a.result === r.best) {
+            html += `<span class="solve best">${formatTime(a.result, card.eventId)}</span>`;
+          } else {
+            html += `<span class="solve">${formatTime(a.result, card.eventId)}</span>`;
+          }
+        }
+        html += `<span class="avg">${avgStr}</span>
+        </div>`;
+
+        // Versión móvil (solo visible en móvil vía CSS)
+        html += `<div class="competitor-row-mobile">
+          <div class="name-line">
+            <span class="name">${name}</span>
+            <span class="rank">#${rank}</span>
+            <span class="avg">${avgStr}</span>
+          </div>
+          <div class="solves">`;
+        for (let i = 0; i < 5; i++) {
+          const a = r.attempts[i];
+          if (!a || a.result === 0) {
+            html += `<span class="solve">—</span>`;
+          } else if (a.result === -1) {
+            html += `<span class="solve dnf">DNF</span>`;
+          } else if (a.result === r.best) {
+            html += `<span class="solve best">${formatTime(a.result, card.eventId)}</span>`;
+          } else {
+            html += `<span class="solve">${formatTime(a.result, card.eventId)}</span>`;
+          }
+        }
+        html += `</div>
+        </div>`;
+      }
+      html += `</div>`;
+    }
+    html += `</div>`;
+  }
+
+  contentEl.innerHTML = html;
+}
+
+// ============ ASSIGNMENTS (WCIF) ============
+const ASSIGNMENT_LABELS = {
+  "competitor":     { label: "Compite",     icon: "🎲", color: "var(--success)" },
+  "staff-judge":    { label: "Juzga",       icon: "👀", color: "var(--warning)" },
+  "staff-scrambler":{ label: "Mezcla",      icon: "🔀", color: "var(--accent)"  },
+  "staff-runner":   { label: "Corre",       icon: "🏃", color: "#ff79c6"        },
+  "staff-dataentry":{ label: "Entrada datos", icon: "📋", color: "#a78bfa"      },
+  "staff-other":    { label: "Staff",       icon: "🛠️", color: "var(--muted)"   },
+};
+
+// Cache de asignaciones previas por wcaId, para detectar diffs entre refrescos.
+// Estructura: { [wcaId]: "huella serializada de sus asignaciones" }
+let previousAssignmentsHash = {};
+// Conjunto de wcaIds que han cambiado en el último refresco (para el badge).
+let changedPersons = new Set();
+let assignmentsTimer = null;
+let assignmentsCompId = null;
+// Cache del último WCIF descargado para reusar en otras vistas (horario)
+let lastWcif = null;
+
+function decodeActivityCode(code) {
+  // Activity codes WCIF típicos: "333-r1-g2-a1" (evento-ronda-grupo-intento)
+  // o "other-misc-..." para actividades genéricas
+  if (!code) return { event: null, round: null, group: null };
+  const parts = code.split("-");
+  if (parts[0] === "other") {
+    return { event: null, round: null, group: null, other: parts.slice(1).join(" ") };
+  }
+  const eventId = parts[0];
+  const round = parts.find(p => p.startsWith("r"))?.slice(1);
+  const group = parts.find(p => p.startsWith("g"))?.slice(1);
+  return {
+    event: EVENT_NAMES[eventId] || eventId,
+    round: round ? `R${round}` : null,
+    group: group ? `G${group}` : null,
+  };
+}
+
+function timeMadridShort(iso) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleTimeString("es-ES", {
+    timeZone: "Europe/Madrid",
+    hour: "2-digit", minute: "2-digit",
+    hour12: false,
+  });
+}
+
+function dateMadridShort(iso) {
+  if (!iso) return "";
+  return new Date(iso).toLocaleDateString("es-ES", {
+    timeZone: "Europe/Madrid",
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit",
+  });
+}
+
+async function fetchWCIF(wcaCompId) {
+  // Misma API que ya usamos en el fetcher de Telegram
+  const r = await fetch(`https://www.worldcubeassociation.org/api/v0/competitions/${wcaCompId}/wcif/public`);
+  if (!r.ok) throw new Error(`WCIF HTTP ${r.status}`);
+  return r.json();
+}
+
+function buildActivityIndex(wcif) {
+  // Map activityId -> {name, code, start, end}
+  // Incluye actividades en venues/rooms y sus subactividades anidadas
+  const index = {};
+  function walk(activities) {
+    for (const a of (activities || [])) {
+      index[a.id] = {
+        name: a.name,
+        code: a.activityCode,
+        start: a.startTime,
+        end: a.endTime,
+      };
+      if (a.childActivities) walk(a.childActivities);
+    }
+  }
+  for (const v of (wcif.schedule?.venues || [])) {
+    for (const room of (v.rooms || [])) {
+      walk(room.activities);
+    }
+  }
+  return index;
+}
+
+async function loadAssignmentsFor(wcaCompId, isInitialLoad = false) {
+  const panel = document.getElementById("assignments-panel");
+  const statusEl = document.getElementById("assignments-status");
+  const content = document.getElementById("assignments-content");
+  panel.style.display = "block";
+
+  if (isInitialLoad) {
+    statusEl.textContent = "Cargando…";
+    content.innerHTML = `<div class="loading">Cargando asignaciones…</div>`;
+    previousAssignmentsHash = {};
+    changedPersons.clear();
+  } else {
+    statusEl.textContent = "Comprobando cambios…";
+  }
+
+  let wcif;
+  try {
+    wcif = await fetchWCIF(wcaCompId);
+    lastWcif = wcif;
+  } catch (e) {
+    content.innerHTML = `<div class="error">No pude cargar WCIF: ${e.message}</div>`;
+    statusEl.textContent = "Error";
+    return;
+  }
+
+  const activities = buildActivityIndex(wcif);
+  const ourWcaIds = new Set(COMPETIDORES.map(c => c.wcaId).filter(Boolean));
+  const persons = (wcif.persons || []).filter(p => ourWcaIds.has(p.wcaId));
+
+  if (persons.length === 0) {
+    content.innerHTML = `
+      <div class="assignments-empty">
+        Ninguno de los competidores tiene asignaciones publicadas todavía.
+      </div>`;
+    statusEl.textContent = "Sin datos";
+    // El WCIF se ha cargado igualmente; el horario sí podemos pintarlo
+    renderSchedule();
+    return;
+  }
+
+  const orderMap = Object.fromEntries(COMPETIDORES.map((c, i) => [c.wcaId, i]));
+  persons.sort((a, b) => (orderMap[a.wcaId] ?? 99) - (orderMap[b.wcaId] ?? 99));
+
+  // Detectar cambios respecto al refresco anterior
+  const newChangedSet = new Set();
+  for (const p of persons) {
+    const rows = (p.assignments || []).map(a => {
+      const act = activities[a.activityId];
+      return {
+        activityId: a.activityId,
+        assignmentCode: a.assignmentCode,
+        stationNumber: a.stationNumber,
+        activityName: act?.name || "",
+        start: act?.start,
+        end: act?.end,
+        code: act?.code,
+      };
+    }).sort((a, b) => (a.start || "").localeCompare(b.start || ""));
+
+    // Huella estable: ordenamos y serializamos
+    const hash = JSON.stringify(rows.map(r =>
+      [r.activityId, r.assignmentCode, r.stationNumber, r.start, r.end].join("|")
+    ));
+    const prev = previousAssignmentsHash[p.wcaId];
+    if (prev !== undefined && prev !== hash) {
+      newChangedSet.add(p.wcaId);
+    }
+    previousAssignmentsHash[p.wcaId] = hash;
+
+    // Guardar rows decodificadas para el render (evita procesar dos veces)
+    p._processedRows = rows.map(r => ({
+      ...r,
+      decoded: decodeActivityCode(r.code),
+    }));
+  }
+
+  // Si NO es el inicial, los cambios nuevos se acumulan a los previos.
+  if (!isInitialLoad) {
+    for (const id of newChangedSet) changedPersons.add(id);
+  }
+
+  // Render
+  const nowMs = Date.now();
+  let html = "";
+
+  for (const p of persons) {
+    const competidor = COMPETIDORES.find(c => c.wcaId === p.wcaId);
+    const displayName = competidor?.nombre || p.name;
+    const hasChanges = changedPersons.has(p.wcaId);
+
+    html += `<div class="person-block${hasChanges ? " has-changes" : ""}">
+      <div class="person-name">
+        ${displayName}
+        <span class="wca-id">${p.wcaId}</span>
+        ${hasChanges ? '<button class="change-badge" data-wcaid="' + p.wcaId + '" title="Ha habido cambios desde el último refresco · pulsa para limpiar">⚠️ Cambios</button>' : ''}
+      </div>`;
+
+    const rows = p._processedRows;
+    if (rows.length === 0) {
+      html += `<div class="assignments-empty">Sin asignaciones publicadas.</div>`;
+    } else {
+      for (const r of rows) {
+        const meta = ASSIGNMENT_LABELS[r.assignmentCode] || ASSIGNMENT_LABELS["staff-other"];
+        const startMs = r.start ? new Date(r.start).getTime() : 0;
+        const endMs = r.end ? new Date(r.end).getTime() : 0;
+        let cls = "";
+        if (endMs && endMs < nowMs) cls = "past";
+        if (startMs && endMs && startMs <= nowMs && nowMs <= endMs) cls = "now";
+
+        const timeText = r.start ? timeMadridShort(r.start) : "—";
+        const station = r.stationNumber ? `<span class="station">Mesa ${r.stationNumber}</span>` : "";
+
+        let descMain;
+        if (r.decoded.event) {
+          const parts = [r.decoded.event];
+          if (r.decoded.round) parts.push(r.decoded.round);
+          if (r.decoded.group) parts.push(r.decoded.group);
+          descMain = parts.join(" · ");
+        } else if (r.decoded.other) {
+          descMain = r.activityName;
+        } else {
+          descMain = r.activityName;
+        }
+
+        html += `<div class="assignment-row ${cls}">
+          <span class="time">${timeText}${cls === "now" ? '<br><span class="now-tag">AHORA</span>' : ""}</span>
+          <span class="icon" title="${meta.label}">${meta.icon}</span>
+          <span class="desc">
+            <span class="role" style="color:${meta.color}">${meta.label}</span>
+            ${descMain}
+            ${station}
+          </span>
+        </div>`;
+      }
+    }
+    html += `</div>`;
+  }
+
+  content.innerHTML = html;
+
+  // Listeners de los badges (limpiarlos al pulsar)
+  content.querySelectorAll(".change-badge").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const wid = btn.dataset.wcaid;
+      changedPersons.delete(wid);
+      // Re-render sin recargar
+      loadAssignmentsFor(wcaCompId, false).catch(() => {});
+    });
+  });
+
+  const persisting = changedPersons.size;
+  const changeMsg = persisting > 0 ? ` · ${persisting} cambio${persisting === 1 ? "" : "s"}` : "";
+  statusEl.textContent = `${persons.length} competidor${persons.length === 1 ? "" : "es"} · ${new Date().toLocaleTimeString("es-ES")}${changeMsg}`;
+
+  // El WCIF está cargado en lastWcif; renderizar también el horario
+  renderSchedule();
+}
+
+// Polling de asignaciones cada 5 minutos
+const ASSIGNMENTS_REFRESH_MS = 5 * 60 * 1000;
+
+function startAssignmentsPolling(wcaCompId) {
+  if (assignmentsTimer) clearInterval(assignmentsTimer);
+  assignmentsCompId = wcaCompId;
+  assignmentsTimer = setInterval(() => {
+    if (assignmentsCompId) {
+      loadAssignmentsFor(assignmentsCompId, false).catch(e => console.warn("Asignaciones refresh:", e));
+    }
+  }, ASSIGNMENTS_REFRESH_MS);
+}
+
+function stopAssignmentsPolling() {
+  if (assignmentsTimer) clearInterval(assignmentsTimer);
+  assignmentsTimer = null;
+  assignmentsCompId = null;
+}
+
+
+// ============ SCHEDULE ============
+let scheduleSelectedDay = null;  // YYYY-MM-DD seleccionado
+
+function renderSchedule() {
+  const panel = document.getElementById("schedule-panel");
+  const content = document.getElementById("schedule-content");
+  const tabs = document.getElementById("schedule-tabs");
+
+  if (!lastWcif) {
+    panel.style.display = "none";
+    return;
+  }
+  panel.style.display = "block";
+
+  // Construir lista plana de actividades de TODOS los venues/rooms
+  // que tengan startTime (las top-level del schedule).
+  // Las que sean contenedores (sin childActivities útiles) las dejamos en la
+  // lista; las childActivities (grupos detallados) se omiten en el horario
+  // general para no saturar — el horario "del día" suele mostrar solo los
+  // bloques principales.
+  const allTopActivities = [];
+  for (const v of (lastWcif.schedule?.venues || [])) {
+    for (const room of (v.rooms || [])) {
+      for (const a of (room.activities || [])) {
+        if (a.startTime) {
+          allTopActivities.push({
+            ...a,
+            roomName: room.name,
+            venueName: v.name,
+          });
+        }
+      }
+    }
+  }
+
+  if (allTopActivities.length === 0) {
+    content.innerHTML = `<div class="schedule-empty">El horario no está publicado todavía.</div>`;
+    tabs.innerHTML = "";
+    return;
+  }
+
+  // Agrupar por día (en hora Madrid)
+  const byDay = {};
+  for (const a of allTopActivities) {
+    const d = new Date(a.startTime);
+    const dayKey = d.toLocaleDateString("es-ES", {
+      timeZone: "Europe/Madrid",
+      day: "2-digit", month: "2-digit", year: "numeric",
+    });
+    if (!byDay[dayKey]) byDay[dayKey] = [];
+    byDay[dayKey].push(a);
+  }
+
+  // Ordenar días cronológicamente y actividades por hora
+  const sortedDays = Object.keys(byDay).sort((a, b) => {
+    // Parse "DD/MM/YYYY"
+    const [da, ma, ya] = a.split("/");
+    const [db, mb, yb] = b.split("/");
+    return new Date(`${ya}-${ma}-${da}`) - new Date(`${yb}-${mb}-${db}`);
+  });
+  for (const k of sortedDays) {
+    byDay[k].sort((a, b) => a.startTime.localeCompare(b.startTime));
+  }
+
+  // Elegir día por defecto: hoy si está, si no el primero
+  const todayKey = new Date().toLocaleDateString("es-ES", {
+    timeZone: "Europe/Madrid",
+    day: "2-digit", month: "2-digit", year: "numeric",
+  });
+  if (!scheduleSelectedDay || !byDay[scheduleSelectedDay]) {
+    scheduleSelectedDay = byDay[todayKey] ? todayKey : sortedDays[0];
+  }
+
+  // Construir mapa actividad -> [{nombre, role}] para los 4
+  const ourWcaIds = new Set(COMPETIDORES.map(c => c.wcaId).filter(Boolean));
+  const activityInvolvement = {};
+  for (const p of (lastWcif.persons || [])) {
+    if (!ourWcaIds.has(p.wcaId)) continue;
+    const competidor = COMPETIDORES.find(c => c.wcaId === p.wcaId);
+    const nombre = competidor?.nombre || p.name.split('(')[0].trim();
+
+    for (const a of (p.assignments || [])) {
+      const code = a.assignmentCode;
+      // Necesitamos saber si esta assignment se corresponde a una actividad
+      // top-level o a una childActivity. En cualquier caso, sumamos al
+      // ancestro top-level por activityId.
+      // Para eso usamos buildActivityIndex que ya tiene todas, y luego
+      // hacemos lookup de child -> padre. Más simple: aprovechar que las
+      // top-level y child cuentan por igual a efectos de "está aquí".
+      const actId = a.activityId;
+      if (!activityInvolvement[actId]) activityInvolvement[actId] = [];
+      activityInvolvement[actId].push({
+        nombre,
+        role: code,
+      });
+    }
+  }
+
+  // Para resaltar también las actividades top-level cuando una child suya
+  // tiene a alguno: pre-procesar mapping child -> top-level
+  const childToTop = {};
+  function mapChildren(act, topId) {
+    if (act.childActivities) {
+      for (const c of act.childActivities) {
+        childToTop[c.id] = topId;
+        mapChildren(c, topId);
+      }
+    }
+  }
+  for (const a of allTopActivities) {
+    childToTop[a.id] = a.id;
+    mapChildren(a, a.id);
+  }
+
+  // Propagar las assignments desde childs a la actividad top-level
+  const topLevelInvolvement = {};
+  for (const [actId, list] of Object.entries(activityInvolvement)) {
+    const topId = childToTop[actId] ?? actId;
+    if (!topLevelInvolvement[topId]) topLevelInvolvement[topId] = {};
+    for (const item of list) {
+      const key = `${item.nombre}|${item.role}`;
+      topLevelInvolvement[topId][key] = item;  // dedup por nombre+role
+    }
+  }
+
+  // Renderizar pestañas de días
+  tabs.innerHTML = sortedDays.map(d => {
+    const isActive = d === scheduleSelectedDay;
+    const isToday = d === todayKey;
+    const label = isToday ? `Hoy (${d})` : d;
+    return `<button data-day="${d}" class="${isActive ? "active" : ""}">${label}</button>`;
+  }).join("");
+  tabs.querySelectorAll("button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      scheduleSelectedDay = btn.dataset.day;
+      renderSchedule();
+    });
+  });
+
+  // Renderizar las actividades del día seleccionado
+  const dayActivities = byDay[scheduleSelectedDay] || [];
+  const nowMs = Date.now();
+
+  let html = `<div class="schedule-day">`;
+  for (const a of dayActivities) {
+    const startMs = new Date(a.startTime).getTime();
+    const endMs = new Date(a.endTime).getTime();
+
+    let cls = "";
+    if (endMs && endMs < nowMs) cls += " past";
+    if (startMs <= nowMs && nowMs <= endMs) cls += " now";
+
+    const involvementMap = topLevelInvolvement[a.id] || {};
+    const involvement = Object.values(involvementMap);
+    if (involvement.length > 0) cls += " has-family";
+
+    const timeStr = `${timeMadridShort(a.startTime)}–${timeMadridShort(a.endTime)}`;
+
+    // Chips de la familia
+    let chipsHtml = "";
+    if (involvement.length > 0) {
+      // Agrupar por persona, mostrando solo el rol "principal" si compite, si no el primero
+      const byPerson = {};
+      for (const item of involvement) {
+        if (!byPerson[item.nombre] || item.role === "competitor") {
+          byPerson[item.nombre] = item.role;
+        }
+      }
+      const order = COMPETIDORES.map(c => c.nombre);
+      const sorted = Object.entries(byPerson).sort(([a], [b]) => {
+        const ia = order.indexOf(a); const ib = order.indexOf(b);
+        return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+      });
+      chipsHtml = sorted.map(([n, role]) => {
+        const meta = ASSIGNMENT_LABELS[role] || ASSIGNMENT_LABELS["staff-other"];
+        const chipCls = role === "competitor" ? "chip compete" : "chip staff";
+        return `<span class="${chipCls}" title="${meta.label}">${meta.icon} ${n}</span>`;
+      }).join("");
+    }
+
+    html += `<div class="schedule-row${cls}">
+      <span class="time">${timeStr}</span>
+      <span class="name">${a.name}</span>
+      <span class="involved">${chipsHtml}</span>
+    </div>`;
+  }
+  html += `</div>`;
+  content.innerHTML = html;
+}
+
+
+async function refreshLive() {
+  if (!liveCompId) return;
+  const statusEl = document.getElementById("status-live");
+  try {
+    setStatus(statusEl, "Actualizando…");
+    const comp = await fetchLiveCompetition(liveCompId);
+    const wcaIdsSet = new Set(COMPETIDORES.map(c => c.wcaId).filter(Boolean));
+    renderLive(comp, wcaIdsSet);
+    if (comp) checkForRecords(comp);
+    setStatus(statusEl, `Conectado · ${new Date().toLocaleTimeString("es-ES")}`, "ok");
+  } catch (e) {
+    setStatus(statusEl, `Error: ${e.message}`, "err");
+  }
+}
+
+function disconnectLive() {
+  if (liveTimer) clearInterval(liveTimer);
+  liveTimer = null;
+  liveCompId = null;
+  liveCompInfo = null;
+  document.getElementById("live-browse").disabled = false;
+  document.getElementById("live-disconnect").disabled = true;
+  document.getElementById("live-now").disabled = true;
+  setStatus(document.getElementById("status-live"), "Desconectado");
+  document.getElementById("live-content").innerHTML = `
+    <div class="empty-state">
+      <div class="icon">📡</div>
+      <p>Pulsa <b>Buscar competición en curso</b> para elegir entre las activas en WCA Live.</p>
+    </div>`;
+  document.getElementById("records-panel").style.display = "none";
+  document.getElementById("assignments-panel").style.display = "none";
+  document.getElementById("schedule-panel").style.display = "none";
+  stopAssignmentsPolling();
+  previousAssignmentsHash = {};
+  changedPersons.clear();
+  lastWcif = null;
+  scheduleSelectedDay = null;
+}
+
+// ============ INIT ============
+document.querySelectorAll(".tab").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById(`panel-${btn.dataset.panel}`).classList.add("active");
+  });
+});
+
+document.getElementById("reload-hist").addEventListener("click", loadHistorico);
+document.getElementById("live-browse").addEventListener("click", openPicker);
+document.getElementById("live-disconnect").addEventListener("click", disconnectLive);
+document.getElementById("live-now").addEventListener("click", refreshLive);
+document.getElementById("refresh-assignments").addEventListener("click", () => {
+  if (assignmentsCompId) loadAssignmentsFor(assignmentsCompId, false).catch(() => {});
+});
+document.getElementById("picker-close").addEventListener("click", closePicker);
+document.getElementById("picker-reload").addEventListener("click", openPicker);
+document.getElementById("picker-filter").addEventListener("input", filterPicker);
+document.getElementById("picker-overlay").addEventListener("click", (e) => {
+  if (e.target.id === "picker-overlay") closePicker();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && document.getElementById("picker-overlay").style.display !== "none") {
+    closePicker();
+  }
+});
+
+// Carga inicial del histórico
+loadHistorico();
+</script>
+
+</body>
+</html>
