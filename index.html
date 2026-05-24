@@ -183,6 +183,19 @@
     font-size: 15px;
     color: var(--accent);
   }
+  .event-card h3 .live-link {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+    margin-left: 6px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: background 0.15s, color 0.15s;
+  }
+  .event-card h3 .live-link:hover {
+    background: var(--card-hover);
+    color: var(--accent);
+  }
   .event-card .round {
     color: var(--muted);
     font-size: 12px;
@@ -217,6 +230,10 @@
     text-align: center;
     color: var(--muted);
     font-size: 11px;
+  }
+  .competitor-row .rank.advances {
+    color: var(--success);
+    font-weight: 700;
   }
 
   .empty-state {
@@ -730,7 +747,7 @@
 
   /* ============ Vista MOBILE para live ============ */
   .competitor-row-mobile {
-    display: grid;
+    display: none;  /* por defecto oculta; el media query la activa en móvil */
     grid-template-columns: 1fr auto;
     gap: 8px;
     padding: 10px 0;
@@ -748,6 +765,10 @@
   .competitor-row-mobile .name-line .rank {
     color: var(--muted);
     font-size: 11px;
+  }
+  .competitor-row-mobile .name-line .rank.advances {
+    color: var(--success);
+    font-weight: 700;
   }
   .competitor-row-mobile .name-line .avg {
     font-family: ui-monospace, monospace;
@@ -786,6 +807,7 @@
 
     /* Live: ocultar la rejilla de 7 columnas, usar tarjetas mobile */
     .competitor-row { display: none !important; }
+    .competitor-row-mobile { display: grid; }
     .events-grid { grid-template-columns: 1fr; }
     .event-card { padding: 12px; }
     .event-card h3 { font-size: 14px; }
@@ -1424,6 +1446,10 @@ async function fetchLiveCompetition(internalId) {
     query($id: ID!) {
       round(id: $id) {
         id
+        advancementCondition {
+          type
+          level
+        }
         results {
           ranking
           attempts { result }
@@ -1443,13 +1469,15 @@ async function fetchLiveCompetition(internalId) {
     )
   );
 
-  // Reinsertamos los resultados en la estructura
+  // Reinsertamos los resultados y la condición de avance en la estructura
   const byId = {};
-  for (const r of roundResults) if (r) byId[r.id] = r.results;
+  for (const r of roundResults) if (r) byId[r.id] = r;
 
   for (const ce of comp.competitionEvents) {
     for (const round of ce.rounds) {
-      round.results = byId[round.id] || [];
+      const data = byId[round.id];
+      round.results = data?.results || [];
+      round.advancementCondition = data?.advancementCondition || null;
     }
   }
 
@@ -1641,6 +1669,37 @@ function selectCompetition(comp) {
 let liveCompInfo = null;
 
 
+function advancesToNextRound(result, advancementCondition, allResults, isFinal) {
+  // Determina si un competidor avanza a la siguiente ronda.
+  // - Si es la última ronda (final): no se pinta nada.
+  // - Si hay advancementCondition explícito: se aplica.
+  // - Si no hay condición publicada o el tipo es desconocido: no se pinta.
+  if (!result) return false;
+  if (isFinal) return false;
+  if (!advancementCondition) return false;
+  if (!result.best || result.best <= 0) return false;
+  const hasValidSolve = result.attempts?.some(a => a.result > 0);
+  if (!hasValidSolve) return false;
+
+  const { type, level } = advancementCondition;
+
+  if (type === "ranking") {
+    return result.ranking && result.ranking <= level;
+  }
+  if (type === "percent") {
+    if (!allResults || !result.ranking) return false;
+    const completed = allResults.filter(r => r.attempts?.some(a => a.result > 0)).length;
+    if (completed === 0) return false;
+    const cutoff = Math.floor(completed * level / 100);
+    return result.ranking <= cutoff;
+  }
+  if (type === "attempt_result") {
+    return result.best > 0 && result.best < level;
+  }
+  // Tipo desconocido: no pintar
+  return false;
+}
+
 function renderLive(comp, wcaIdsSet) {
   const contentEl = document.getElementById("live-content");
   if (!comp) {
@@ -1661,6 +1720,7 @@ function renderLive(comp, wcaIdsSet) {
   // Filtrar eventos donde alguno de los 4 tenga al menos un intento en alguna ronda
   const cards = [];
   for (const ce of comp.competitionEvents) {
+    const totalRounds = ce.rounds.length;
     for (const round of ce.rounds) {
       const ourResults = round.results.filter(r => wcaIdsSet.has(r.person.wcaId));
       const anyAttempt = ourResults.some(r => r.attempts.some(a => a.result !== 0));
@@ -1669,10 +1729,13 @@ function renderLive(comp, wcaIdsSet) {
       cards.push({
         eventId: ce.event.id,
         eventName: ce.event.name,
+        roundId: round.id,
         roundName: round.name,
         roundNumber: round.number,
+        isFinal: round.number === totalRounds,
         results: ourResults,
         allResults: round.results,
+        advancementCondition: round.advancementCondition,
       });
     }
   }
@@ -1687,8 +1750,12 @@ function renderLive(comp, wcaIdsSet) {
   } else {
     html += `<div class="events-grid">`;
     for (const card of cards) {
+      const liveUrl = `https://live.worldcubeassociation.org/competitions/${liveCompId}/rounds/${card.roundId}`;
       html += `<div class="event-card">
-        <h3>${card.eventName}</h3>
+        <h3>
+          ${card.eventName}
+          <a href="${liveUrl}" target="_blank" rel="noopener" class="live-link" title="Ver esta ronda en WCA Live">↗</a>
+        </h3>
         <div class="round">${card.roundName}</div>`;
 
       // Cabecera
@@ -1702,11 +1769,13 @@ function renderLive(comp, wcaIdsSet) {
         const name = r.person.name.split('(')[0].trim();
         const rank = r.ranking || '—';
         const avgStr = formatTime(r.average, card.eventId);
+        const passes = advancesToNextRound(r, card.advancementCondition, card.allResults, card.isFinal);
+        const rankCls = passes ? "rank advances" : "rank";
 
         // Versión escritorio (se oculta en móvil vía CSS)
         html += `<div class="competitor-row">
           <span class="name">${name}</span>
-          <span class="rank">${rank}</span>`;
+          <span class="${rankCls}">${rank}</span>`;
         for (let i = 0; i < 5; i++) {
           const a = r.attempts[i];
           if (!a || a.result === 0) {
@@ -1726,7 +1795,7 @@ function renderLive(comp, wcaIdsSet) {
         html += `<div class="competitor-row-mobile">
           <div class="name-line">
             <span class="name">${name}</span>
-            <span class="rank">#${rank}</span>
+            <span class="${rankCls}">#${rank}</span>
             <span class="avg">${avgStr}</span>
           </div>
           <div class="solves">`;
