@@ -83,6 +83,29 @@
   button.danger { background: #c92a2a; border-color: #c92a2a; color: white; }
   button:disabled { opacity: 0.4; cursor: not-allowed; }
   input[type="text"] { font-family: ui-monospace, "Cascadia Code", monospace; min-width: 220px; }
+
+  .refresh-bar {
+    margin-bottom: 20px;
+  }
+  button.big-refresh {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+    font-size: 16px;
+    font-weight: 600;
+    padding: 14px 22px;
+    width: 100%;
+    max-width: 380px;
+  }
+  button.big-refresh:hover:not(:disabled) {
+    background: var(--accent);
+    opacity: 0.9;
+  }
+  button.big-refresh:disabled {
+    background: var(--card);
+    border-color: var(--border);
+    color: var(--muted);
+  }
   input[type="text"]:focus { outline: none; border-color: var(--accent); }
 
   .status {
@@ -865,14 +888,16 @@
     <div class="controls">
       <button class="primary" id="live-browse">📋 Buscar competición en curso</button>
       <button class="danger" id="live-disconnect" disabled>Desconectar</button>
-      <button id="live-now" disabled>🔄 Actualizar ahora</button>
       <div class="status" id="status-live">No conectado</div>
+    </div>
+    <div class="controls refresh-bar">
+      <button class="big-refresh" id="live-now" disabled>🔄 Actualizar ahora</button>
     </div>
     <div id="live-content">
       <div class="empty-state">
         <div class="icon">📡</div>
         <p>Pulsa <b>Buscar competición en curso</b> para elegir entre las activas en WCA Live.</p>
-        <p style="font-size: 12px;">La página actualizará los tiempos cada 15 segundos.</p>
+        <p style="font-size: 12px;">Tras conectar, pulsa <b>Actualizar ahora</b> para refrescar los datos.</p>
       </div>
     </div>
 
@@ -1024,19 +1049,27 @@ function formatMBLD(value) {
   return `${solved}/${solved + fallidos}`;
 }
 
-function formatTime(centi, eventId) {
+function formatTime(centi, eventId, isAverage = false) {
   if (eventId === "333mbf") return formatMBLD(centi);
   if (eventId === "333fm") {
     if (centi == null || centi === 0) return "—";
     if (centi === -1) return "DNF";
-    return centi.toString(); // FM se mide en movimientos, no en segundos
+    // FM se mide en movimientos. El SINGLE viene como entero (ej. 47 = 47 movimientos).
+    // El AVERAGE viene multiplicado por 100 (ej. 4700 = 47.00 movimientos).
+    if (isAverage) {
+      return (centi / 100).toFixed(2);
+    }
+    return centi.toString();
   }
   return formatCenti(centi);
 }
 
 async function fetchPerson(wcaId) {
   if (!wcaId) return null;
-  const r = await fetch(`https://www.worldcubeassociation.org/api/v0/persons/${wcaId}`);
+  // Cache-busting: el parámetro _ y los headers no-cache fuerzan al navegador
+  // y a cualquier CDN intermedio a pedir datos frescos en cada recarga manual.
+  const url = `https://www.worldcubeassociation.org/api/v0/persons/${wcaId}?_=${Date.now()}`;
+  const r = await fetch(url, { cache: "no-store" });
   if (!r.ok) throw new Error(`${wcaId}: HTTP ${r.status}`);
   return r.json();
 }
@@ -1160,7 +1193,7 @@ async function loadHistorico() {
           } else {
             const medal = medalClass(pr.best, podium);
             const cls = medal ? `time ${medal}` : "time";
-            html += `<td class="${cls}">${formatTime(pr.best, evId)}</td>`;
+            html += `<td class="${cls}">${formatTime(pr.best, evId, type === "average")}</td>`;
           }
         }
       }
@@ -1198,7 +1231,7 @@ async function loadHistorico() {
             ? `<span class="single ${medalClass(single.best, podiumSingle)}"><span class="col-label">single</span>${formatTime(single.best, evId)}</span>`
             : `<span class="single"><span class="col-label">single</span>—</span>`;
           const avgStr = avg
-            ? `<span class="avg ${medalClass(avg.best, podiumAvg)}"><span class="col-label">avg</span>${formatTime(avg.best, evId)}</span>`
+            ? `<span class="avg ${medalClass(avg.best, podiumAvg)}"><span class="col-label">avg</span>${formatTime(avg.best, evId, true)}</span>`
             : `<span class="avg"><span class="col-label">avg</span>—</span>`;
 
           mobileHtml += `<div class="event-row">
@@ -1240,7 +1273,8 @@ function pushRecord(kind, eventId, wcaId, time, previous) {
   const comp = getCompetidorByWcaId(wcaId);
   const nombre = comp ? comp.nombre : wcaId;
   const evName = EVENT_NAMES[eventId] || eventId;
-  const timeStr = formatTime(time, eventId);
+  const isAvg = kind === "pb-average";
+  const timeStr = formatTime(time, eventId, isAvg);
   let msg, delta = "";
   switch (kind) {
     case "pb-single":
@@ -1657,12 +1691,11 @@ function selectCompetition(comp) {
   loadOfficialPBs().then(() => {
     refreshLive();
   });
-  liveTimer = setInterval(refreshLive, LIVE_REFRESH_MS);
+  // No polling automático: el usuario refresca con el botón "Actualizar ahora".
 
-  // Cargar asignaciones del WCIF y arrancar polling cada 5 minutos
+  // Cargar asignaciones del WCIF (una sola vez, refresco manual con su botón)
   if (comp.wcaId) {
     loadAssignmentsFor(comp.wcaId, true).catch(e => console.warn("Asignaciones:", e));
-    startAssignmentsPolling(comp.wcaId);
   }
 }
 
@@ -1714,7 +1747,7 @@ function renderLive(comp, wcaIdsSet) {
   let html = `
     <div class="live-info">
       <h2>${comp.name} <span class="badge">EN VIVO</span></h2>
-      <div class="meta">Actualizado ${new Date().toLocaleTimeString("es-ES")} · refresco cada ${LIVE_REFRESH_MS/1000}s</div>
+      <div class="meta">Actualizado ${new Date().toLocaleTimeString("es-ES")}</div>
     </div>`;
 
   // Filtrar eventos donde alguno de los 4 tenga al menos un intento en alguna ronda
@@ -1768,7 +1801,7 @@ function renderLive(comp, wcaIdsSet) {
       for (const r of card.results) {
         const name = r.person.name.split('(')[0].trim();
         const rank = r.ranking || '—';
-        const avgStr = formatTime(r.average, card.eventId);
+        const avgStr = formatTime(r.average, card.eventId, true);
         const passes = advancesToNextRound(r, card.advancementCondition, card.allResults, card.isFinal);
         const rankCls = passes ? "rank advances" : "rank";
 
