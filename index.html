@@ -83,29 +83,6 @@
   button.danger { background: #c92a2a; border-color: #c92a2a; color: white; }
   button:disabled { opacity: 0.4; cursor: not-allowed; }
   input[type="text"] { font-family: ui-monospace, "Cascadia Code", monospace; min-width: 220px; }
-
-  .refresh-bar {
-    margin-bottom: 20px;
-  }
-  button.big-refresh {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: white;
-    font-size: 16px;
-    font-weight: 600;
-    padding: 14px 22px;
-    width: 100%;
-    max-width: 380px;
-  }
-  button.big-refresh:hover:not(:disabled) {
-    background: var(--accent);
-    opacity: 0.9;
-  }
-  button.big-refresh:disabled {
-    background: var(--card);
-    border-color: var(--border);
-    color: var(--muted);
-  }
   input[type="text"]:focus { outline: none; border-color: var(--accent); }
 
   .status {
@@ -206,19 +183,6 @@
     font-size: 15px;
     color: var(--accent);
   }
-  .event-card h3 .live-link {
-    color: var(--muted);
-    text-decoration: none;
-    font-size: 13px;
-    margin-left: 6px;
-    padding: 2px 6px;
-    border-radius: 4px;
-    transition: background 0.15s, color 0.15s;
-  }
-  .event-card h3 .live-link:hover {
-    background: var(--card-hover);
-    color: var(--accent);
-  }
   .event-card .round {
     color: var(--muted);
     font-size: 12px;
@@ -253,10 +217,6 @@
     text-align: center;
     color: var(--muted);
     font-size: 11px;
-  }
-  .competitor-row .rank.advances {
-    color: var(--success);
-    font-weight: 700;
   }
 
   .empty-state {
@@ -770,7 +730,7 @@
 
   /* ============ Vista MOBILE para live ============ */
   .competitor-row-mobile {
-    display: none;  /* por defecto oculta; el media query la activa en móvil */
+    display: grid;
     grid-template-columns: 1fr auto;
     gap: 8px;
     padding: 10px 0;
@@ -788,10 +748,6 @@
   .competitor-row-mobile .name-line .rank {
     color: var(--muted);
     font-size: 11px;
-  }
-  .competitor-row-mobile .name-line .rank.advances {
-    color: var(--success);
-    font-weight: 700;
   }
   .competitor-row-mobile .name-line .avg {
     font-family: ui-monospace, monospace;
@@ -830,7 +786,6 @@
 
     /* Live: ocultar la rejilla de 7 columnas, usar tarjetas mobile */
     .competitor-row { display: none !important; }
-    .competitor-row-mobile { display: grid; }
     .events-grid { grid-template-columns: 1fr; }
     .event-card { padding: 12px; }
     .event-card h3 { font-size: 14px; }
@@ -888,16 +843,14 @@
     <div class="controls">
       <button class="primary" id="live-browse">📋 Buscar competición en curso</button>
       <button class="danger" id="live-disconnect" disabled>Desconectar</button>
+      <button id="live-now" disabled>🔄 Actualizar ahora</button>
       <div class="status" id="status-live">No conectado</div>
-    </div>
-    <div class="controls refresh-bar">
-      <button class="big-refresh" id="live-now" disabled>🔄 Actualizar ahora</button>
     </div>
     <div id="live-content">
       <div class="empty-state">
         <div class="icon">📡</div>
         <p>Pulsa <b>Buscar competición en curso</b> para elegir entre las activas en WCA Live.</p>
-        <p style="font-size: 12px;">Tras conectar, pulsa <b>Actualizar ahora</b> para refrescar los datos.</p>
+        <p style="font-size: 12px;">La página actualizará los tiempos cada 15 segundos.</p>
       </div>
     </div>
 
@@ -977,7 +930,6 @@ const COMPETIDORES = [
   { nombre: "Álex Mora Prieto",   wcaId: "2025MORA11" },
   { nombre: "Marcos Mora Prieto", wcaId: "2025PRIE04" },
   { nombre: "Arturo Lizama Montoya",    wcaId: "2022MONT30" },
-  { nombre: "Javier Lizama Montoya",    wcaId: "2022MONT31" },
   { nombre: "Enzo Perez de Sousa",   wcaId: "2023SOUS01" },
   { nombre: "Hugo Barjollo Morales",   wcaId: "2024MORA08" },
   { nombre: "Miguel Ángel Meza",   wcaId: "2023MEZA02" },
@@ -1050,27 +1002,19 @@ function formatMBLD(value) {
   return `${solved}/${solved + fallidos}`;
 }
 
-function formatTime(centi, eventId, isAverage = false) {
+function formatTime(centi, eventId) {
   if (eventId === "333mbf") return formatMBLD(centi);
   if (eventId === "333fm") {
     if (centi == null || centi === 0) return "—";
     if (centi === -1) return "DNF";
-    // FM se mide en movimientos. El SINGLE viene como entero (ej. 47 = 47 movimientos).
-    // El AVERAGE viene multiplicado por 100 (ej. 4700 = 47.00 movimientos).
-    if (isAverage) {
-      return (centi / 100).toFixed(2);
-    }
-    return centi.toString();
+    return centi.toString(); // FM se mide en movimientos, no en segundos
   }
   return formatCenti(centi);
 }
 
 async function fetchPerson(wcaId) {
   if (!wcaId) return null;
-  // Cache-busting: el parámetro _ y los headers no-cache fuerzan al navegador
-  // y a cualquier CDN intermedio a pedir datos frescos en cada recarga manual.
-  const url = `https://www.worldcubeassociation.org/api/v0/persons/${wcaId}?_=${Date.now()}`;
-  const r = await fetch(url, { cache: "no-store" });
+  const r = await fetch(`https://www.worldcubeassociation.org/api/v0/persons/${wcaId}`);
   if (!r.ok) throw new Error(`${wcaId}: HTTP ${r.status}`);
   return r.json();
 }
@@ -1194,7 +1138,7 @@ async function loadHistorico() {
           } else {
             const medal = medalClass(pr.best, podium);
             const cls = medal ? `time ${medal}` : "time";
-            html += `<td class="${cls}">${formatTime(pr.best, evId, type === "average")}</td>`;
+            html += `<td class="${cls}">${formatTime(pr.best, evId)}</td>`;
           }
         }
       }
@@ -1232,7 +1176,7 @@ async function loadHistorico() {
             ? `<span class="single ${medalClass(single.best, podiumSingle)}"><span class="col-label">single</span>${formatTime(single.best, evId)}</span>`
             : `<span class="single"><span class="col-label">single</span>—</span>`;
           const avgStr = avg
-            ? `<span class="avg ${medalClass(avg.best, podiumAvg)}"><span class="col-label">avg</span>${formatTime(avg.best, evId, true)}</span>`
+            ? `<span class="avg ${medalClass(avg.best, podiumAvg)}"><span class="col-label">avg</span>${formatTime(avg.best, evId)}</span>`
             : `<span class="avg"><span class="col-label">avg</span>—</span>`;
 
           mobileHtml += `<div class="event-row">
@@ -1274,8 +1218,7 @@ function pushRecord(kind, eventId, wcaId, time, previous) {
   const comp = getCompetidorByWcaId(wcaId);
   const nombre = comp ? comp.nombre : wcaId;
   const evName = EVENT_NAMES[eventId] || eventId;
-  const isAvg = kind === "pb-average";
-  const timeStr = formatTime(time, eventId, isAvg);
+  const timeStr = formatTime(time, eventId);
   let msg, delta = "";
   switch (kind) {
     case "pb-single":
@@ -1296,13 +1239,6 @@ function pushRecord(kind, eventId, wcaId, time, previous) {
       msg = `<strong>${nombre}</strong> mejor de la familia en <strong>${evName}</strong> hoy: <span class="time-val">${timeStr}</span>`;
       break;
   }
-  // Quitar avisos previos del MISMO tipo/persona/evento — solo nos interesa
-  // el último (el mejor hasta ahora). Así si alguien batió su PB tres veces
-  // seguidas, solo queda visible la última marca.
-  recordsList = recordsList.filter(r =>
-    !(r.kind === kind && r.wcaId === wcaId && r.eventId === eventId)
-  );
-
   recordsList.unshift({
     ts: new Date().toLocaleTimeString("es-ES"),
     kind, msg, delta, eventId, wcaId,
@@ -1388,16 +1324,14 @@ function checkForRecords(comp) {
         }
 
         // ----- Mejor de la familia (single) -----
-        // Aviso desactivado: solo registramos el "mejor del día" internamente
-        // para referencia, pero no creamos record en el panel.
         if (r.best > 0) {
           if (!familyBestDay[evId]) familyBestDay[evId] = {};
           const prev = familyBestDay[evId].single;
           if (!prev || r.best < prev.centi) {
-            // (notificación deshabilitada a propósito)
-            // if (prev && prev.wcaId !== wcaId) {
-            //   pushRecord("best-family", evId, wcaId, r.best, prev.centi);
-            // }
+            // Solo avisar si ya había otro mejor antes (no en el primer set)
+            if (prev && prev.wcaId !== wcaId) {
+              pushRecord("best-family", evId, wcaId, r.best, prev.centi);
+            }
             familyBestDay[evId].single = { centi: r.best, wcaId };
           }
         }
@@ -1481,10 +1415,6 @@ async function fetchLiveCompetition(internalId) {
     query($id: ID!) {
       round(id: $id) {
         id
-        advancementCondition {
-          type
-          level
-        }
         results {
           ranking
           attempts { result }
@@ -1504,15 +1434,13 @@ async function fetchLiveCompetition(internalId) {
     )
   );
 
-  // Reinsertamos los resultados y la condición de avance en la estructura
+  // Reinsertamos los resultados en la estructura
   const byId = {};
-  for (const r of roundResults) if (r) byId[r.id] = r;
+  for (const r of roundResults) if (r) byId[r.id] = r.results;
 
   for (const ce of comp.competitionEvents) {
     for (const round of ce.rounds) {
-      const data = byId[round.id];
-      round.results = data?.results || [];
-      round.advancementCondition = data?.advancementCondition || null;
+      round.results = byId[round.id] || [];
     }
   }
 
@@ -1692,47 +1620,17 @@ function selectCompetition(comp) {
   loadOfficialPBs().then(() => {
     refreshLive();
   });
-  // No polling automático: el usuario refresca con el botón "Actualizar ahora".
+  liveTimer = setInterval(refreshLive, LIVE_REFRESH_MS);
 
-  // Cargar asignaciones del WCIF (una sola vez, refresco manual con su botón)
+  // Cargar asignaciones del WCIF y arrancar polling cada 5 minutos
   if (comp.wcaId) {
     loadAssignmentsFor(comp.wcaId, true).catch(e => console.warn("Asignaciones:", e));
+    startAssignmentsPolling(comp.wcaId);
   }
 }
 
 let liveCompInfo = null;
 
-
-function advancesToNextRound(result, advancementCondition, allResults, isFinal) {
-  // Determina si un competidor avanza a la siguiente ronda.
-  // - Si es la última ronda (final): no se pinta nada.
-  // - Si hay advancementCondition explícito: se aplica.
-  // - Si no hay condición publicada o el tipo es desconocido: no se pinta.
-  if (!result) return false;
-  if (isFinal) return false;
-  if (!advancementCondition) return false;
-  if (!result.best || result.best <= 0) return false;
-  const hasValidSolve = result.attempts?.some(a => a.result > 0);
-  if (!hasValidSolve) return false;
-
-  const { type, level } = advancementCondition;
-
-  if (type === "ranking") {
-    return result.ranking && result.ranking <= level;
-  }
-  if (type === "percent") {
-    if (!allResults || !result.ranking) return false;
-    const completed = allResults.filter(r => r.attempts?.some(a => a.result > 0)).length;
-    if (completed === 0) return false;
-    const cutoff = Math.floor(completed * level / 100);
-    return result.ranking <= cutoff;
-  }
-  if (type === "attempt_result") {
-    return result.best > 0 && result.best < level;
-  }
-  // Tipo desconocido: no pintar
-  return false;
-}
 
 function renderLive(comp, wcaIdsSet) {
   const contentEl = document.getElementById("live-content");
@@ -1748,13 +1646,12 @@ function renderLive(comp, wcaIdsSet) {
   let html = `
     <div class="live-info">
       <h2>${comp.name} <span class="badge">EN VIVO</span></h2>
-      <div class="meta">Actualizado ${new Date().toLocaleTimeString("es-ES")}</div>
+      <div class="meta">Actualizado ${new Date().toLocaleTimeString("es-ES")} · refresco cada ${LIVE_REFRESH_MS/1000}s</div>
     </div>`;
 
   // Filtrar eventos donde alguno de los 4 tenga al menos un intento en alguna ronda
   const cards = [];
   for (const ce of comp.competitionEvents) {
-    const totalRounds = ce.rounds.length;
     for (const round of ce.rounds) {
       const ourResults = round.results.filter(r => wcaIdsSet.has(r.person.wcaId));
       const anyAttempt = ourResults.some(r => r.attempts.some(a => a.result !== 0));
@@ -1763,16 +1660,18 @@ function renderLive(comp, wcaIdsSet) {
       cards.push({
         eventId: ce.event.id,
         eventName: ce.event.name,
-        roundId: round.id,
         roundName: round.name,
         roundNumber: round.number,
-        isFinal: round.number === totalRounds,
         results: ourResults,
         allResults: round.results,
-        advancementCondition: round.advancementCondition,
       });
     }
   }
+
+  // Invertir el orden para que las rondas más recientes (las que están
+  // pasando ahora o acaban de empezar) aparezcan arriba. Así no hay que
+  // hacer scroll a medida que la competición avanza.
+  cards.reverse();
 
   if (cards.length === 0) {
     html += `
@@ -1784,12 +1683,8 @@ function renderLive(comp, wcaIdsSet) {
   } else {
     html += `<div class="events-grid">`;
     for (const card of cards) {
-      const liveUrl = `https://live.worldcubeassociation.org/competitions/${liveCompId}/rounds/${card.roundId}`;
       html += `<div class="event-card">
-        <h3>
-          ${card.eventName}
-          <a href="${liveUrl}" target="_blank" rel="noopener" class="live-link" title="Ver esta ronda en WCA Live">↗</a>
-        </h3>
+        <h3>${card.eventName}</h3>
         <div class="round">${card.roundName}</div>`;
 
       // Cabecera
@@ -1802,14 +1697,12 @@ function renderLive(comp, wcaIdsSet) {
       for (const r of card.results) {
         const name = r.person.name.split('(')[0].trim();
         const rank = r.ranking || '—';
-        const avgStr = formatTime(r.average, card.eventId, true);
-        const passes = advancesToNextRound(r, card.advancementCondition, card.allResults, card.isFinal);
-        const rankCls = passes ? "rank advances" : "rank";
+        const avgStr = formatTime(r.average, card.eventId);
 
         // Versión escritorio (se oculta en móvil vía CSS)
         html += `<div class="competitor-row">
           <span class="name">${name}</span>
-          <span class="${rankCls}">${rank}</span>`;
+          <span class="rank">${rank}</span>`;
         for (let i = 0; i < 5; i++) {
           const a = r.attempts[i];
           if (!a || a.result === 0) {
@@ -1829,7 +1722,7 @@ function renderLive(comp, wcaIdsSet) {
         html += `<div class="competitor-row-mobile">
           <div class="name-line">
             <span class="name">${name}</span>
-            <span class="${rankCls}">#${rank}</span>
+            <span class="rank">#${rank}</span>
             <span class="avg">${avgStr}</span>
           </div>
           <div class="solves">`;
